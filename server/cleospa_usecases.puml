@@ -1,0 +1,78 @@
+@startuml
+title Oasis Spa Revenue & Dashboard Use Cases
+left to right direction
+actor "Admin / Manager" as Admin
+
+package "Dashboard Module" {
+    usecase "View Revenue Dashboard" as UC_ViewDash
+    
+    usecase "View Current Month Stats" as UC_Stats
+    usecase "View Revenue Trend Chart" as UC_Trend
+    usecase "View Top Selling Services" as UC_Top
+    
+    UC_ViewDash ..> UC_Stats : <<include>>
+    UC_ViewDash ..> UC_Trend : <<include>>
+    UC_ViewDash ..> UC_Top : <<include>>
+}
+
+package "Revenue Reporting Module" {
+    
+    package "Monthly Revenue (Realized/Income)" {
+        usecase "View Monthly Report" as UC_ViewReport
+        usecase "Select Year & Month" as UC_SelectDate
+        
+        usecase "View Income (Cash Flow)" as UC_ViewIncome
+        usecase "View Net Sales (Realized/Referred)" as UC_ViewRealized
+        usecase "View Refunds" as UC_ViewRefunds
+        
+        usecase "Filter: MV / MCP / Ad-Hoc" as UC_Filter
+        
+        usecase "Drill Down / Breakdown Cell" as UC_Drill
+        usecase "Manual Adjustment / Edit" as UC_Edit
+        
+        usecase "Export to Excel" as UC_Export
+    }
+    
+    package "Deferred Revenue (Liability)" {
+        usecase "View Deferred Revenue Report" as UC_ViewDeferred
+        usecase "Calculate Remaining Liability" as UC_Def_Calc
+    }
+}
+
+' Interactions
+Admin --> UC_ViewDash
+Admin --> UC_ViewReport
+Admin --> UC_ViewDeferred
+
+' Relationships
+UC_ViewReport ..> UC_SelectDate : <<include>>
+UC_ViewReport ..> UC_Filter : <<include>>
+UC_ViewReport ..> UC_Drill : <<extend>>
+UC_ViewReport ..> UC_Edit : <<extend>>
+UC_ViewReport ..> UC_Export : <<extend>>
+
+UC_ViewReport --> UC_ViewIncome
+UC_ViewReport --> UC_ViewRealized
+UC_ViewReport --> UC_ViewRefunds
+
+UC_ViewDeferred --> UC_Def_Calc
+
+note right of UC_ViewRealized
+  **"Referred/Net Sales"**:
+  Revenue recognized when service is 
+  actually performed (Consumption).
+end note
+
+note right of UC_ViewIncome
+  **"Income"**:
+  Money collected upfront 
+  (e.g., selling a package).
+end note
+
+note right of UC_Def_Calc
+  **Deferred Revenue**:
+  Income - Realized - Refunds
+  (Money held for future services)
+end note
+
+@enduml

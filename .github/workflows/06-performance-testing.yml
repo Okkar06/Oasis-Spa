@@ -1,0 +1,67 @@
+name: Performance Testing
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Build and measure client
+        run: |
+          cd client
+          npm ci
+          echo "=== Building Client ==="
+          time npm run build
+          echo ""
+          echo "=== Client Build Artifacts ==="
+          du -sh dist/
+          ls -lh dist/
+
+      - name: Build and measure server
+        run: |
+          cd server
+          npm ci
+          echo "=== Building Server ==="
+          time npm run build
+          echo ""
+          echo "=== Server Build Artifacts ==="
+          du -sh dist/
+          ls -lh dist/
+
+      - name: Analyze bundle sizes
+        run: |
+          echo "=== Bundle Size Analysis ==="
+          if [ -d "client/dist" ]; then
+            echo "Client dist folder size:"
+            du -sh client/dist
+            find client/dist -type f -name "*.js" | head -10 | while read f; do echo "  $f: $(du -h $f | cut -f1)"; done
+          fi
+          if [ -d "server/dist" ]; then
+            echo "Server dist folder size:"
+            du -sh server/dist
+            find server/dist -type f -name "*.js" | head -10 | while read f; do echo "  $f: $(du -h $f | cut -f1)"; done
+          fi
+
+      - name: Create performance summary
+        run: |
+          echo "## Performance Report" > /tmp/perf.md
+          echo "Build completed on $(date)" >> /tmp/perf.md
+          echo "Commit: ${{ github.sha }}" >> /tmp/perf.md
+          cat /tmp/perf.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: performance-report
+          path: /tmp/perf.md
+          retention-days: 30
+

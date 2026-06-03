@@ -1,0 +1,47 @@
+@startuml
+title Detailed Dashboard Use Case Diagram
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Admin / Manager" as Admin
+
+rectangle "Dashboard Module" {
+    
+    usecase "View Dashboard" as UC_View
+    
+    package "Key Performance Indicators (KPIs)" {
+        usecase "View Total Revenue" as UC_Rev
+        usecase "View Total Transactions" as UC_Tx
+        usecase "View Average Transaction Value" as UC_Avg
+    }
+    
+    package "Charts & Analytics" {
+        usecase "View Revenue Trend (Last 7 Days)" as UC_Trend
+        usecase "View Top 5 Selling Services (Last 30 Days)" as UC_Top
+    }
+
+    UC_View ..> UC_Rev : <<include>>
+    UC_View ..> UC_Tx : <<include>>
+    UC_View ..> UC_Avg : <<include>>
+    UC_View ..> UC_Trend : <<include>>
+    UC_View ..> UC_Top : <<include>>
+}
+
+Admin --> UC_View
+
+note right of UC_Rev
+  Sum of all **Income** (Cash collected)
+  for the current month.
+end note
+
+note right of UC_Trend
+  Daily income sums for the past 7 days.
+  Helps track weekly performance.
+end note
+
+note right of UC_Top
+  Aggregated quantity of sold services.
+  Helps identify popular offerings.
+end note
+
+@enduml

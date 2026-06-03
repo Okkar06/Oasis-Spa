@@ -1,0 +1,72 @@
+@startuml
+title Revenue Report Sequence Diagram
+
+actor User
+participant "UI (Revenue Report Page)" as UI
+participant "Store (Data Management)" as Store
+participant "Backend" as Backend
+
+== Load Report ==
+User -> UI: Open Revenue Report
+activate UI
+
+UI -> Store: fetchParentDate Restrictions\n(fetchEarliestDate)
+activate Store
+Store -> Backend: GET /rr/range
+activate Backend
+Backend --> Store: Return earliest date
+deactivate Backend
+Store --> UI: set earliestDate
+deactivate Store
+
+UI -> Store: Get payment methods\n(fetchPaymentMethods)
+activate Store
+Store -> Backend: GET /payment-method/visible
+activate Backend
+Backend --> Store: Return available payment methods
+deactivate Backend
+Store -> Store: Filter enabled & income methods
+Store --> UI: Render payment method columns
+deactivate Store
+
+UI -> Store: Fetch revenue statistics\n(fetchRevenueData)
+activate Store
+Store -> Backend: GET /rr/mrr/mv\nGET /rr/mrr/mcp\nGET /rr/mrr/adhoc\nGET /rr/dr/mv...
+activate Backend
+Backend --> Store: Return raw tab datasets
+deactivate Backend
+
+Store -> Store: parseRevenueData()\ncalculateTotals()\nmergeDataArrays()
+Store --> UI: Update reportData, datasets & totals
+deactivate Store
+
+UI --> User: Display comprehensive\nRevenue Report Table
+
+== Edit Cell Value ==
+User -> UI: Click on numeric cell in table
+UI -> Store: Request cell breakdown\n(loadCellBreakdown)
+activate Store
+Store -> Backend: GET /rr/cell-breakdown\n(tab, date, fieldKey)
+activate Backend
+Backend --> Store: Return transactions & summary
+deactivate Backend
+Store --> UI: Open Side Sheet with details
+deactivate Store
+
+User -> UI: Enter new amount & reason\nClick Save
+UI -> Store: Dispatch save action\n(handleSaveInlineEdit)
+activate Store
+Store -> Backend: POST /rr/cell-update\n{mode, newValue, reason, ...transactions}
+activate Backend
+Backend -> Backend: Validate data & update records\n(paymentToSaleTransaction / new override)
+Backend --> Store: Return success response
+deactivate Backend
+
+Store -> Store: fetchRevenueData()\nRefetch data to recalculate totals
+Store --> UI: Close Side Sheet & Show Success Toast
+deactivate Store
+
+UI --> User: Render updated table with new values
+deactivate UI
+
+@enduml

@@ -1,0 +1,108 @@
+@startuml
+title Class Diagram - Revenue Management
+skinparam classAttributeIconSize 0
+
+class Member {
+    - id: BigInt
+    - name: String
+    - email: String
+    - contact: String
+    + getTotalSpending(): Decimal
+}
+
+class MemberCarePackage {
+    - id: BigInt
+    - packageName: String
+    - notes: String
+    - totalPrice: Decimal
+    - balance: Decimal
+}
+
+class MemberVoucher {
+    - id: BigInt
+    - memberVoucherName: String
+    - currentBalance: Decimal
+    - status: String
+}
+
+class MemberCarePackageLog {
+    - id: BigInt
+    - logDate: DateTime
+    - amountUsed: Decimal
+    - notes: String
+}
+
+class MemberVoucherLog {
+    - id: BigInt
+    - logDate: DateTime
+    - amountUsed: Decimal
+    - notes: String
+}
+
+class PointOfValueAccount {
+    - id: BigInt
+    - pointOfValue: Decimal
+}
+
+class SaleTransaction {
+    - id: BigInt
+    - customerType: String
+    - totalPaidAmount: Decimal
+    - outstandingTotalPaymentAmount: Decimal
+    - gstAmount: Decimal
+    - saleTransactionStatus: String
+    - createdAt: DateTime
+    + calculateTotalAmount(): Decimal
+    + calculateGST(): Decimal
+}
+
+class SaleTransactionItem {
+    - id: BigInt
+    - serviceName: String
+    - productName: String
+    - quantity: Int
+    - amount: Decimal
+    - itemType: String
+}
+
+class PaymentToSaleTransaction {
+    - id: BigInt
+    - amount: Decimal
+    - createdAt: DateTime
+}
+
+class PaymentMethod {
+    - id: BigInt
+    - paymentMethodName: String
+    - isEnabled: Boolean
+    - isIncome: Boolean
+}
+
+class RevenueService {
+    + getRevenueByPaymentMethod(startDate: Date, endDate: Date): List<SaleTransaction>
+    + getDeferredRevenue(): Decimal
+    + getOverallStats(): Map
+    + generateRevenueReport(format: String): File
+}
+
+' Relationships
+Member "1" -- "0..*" MemberCarePackage : owns
+Member "1" -- "0..*" MemberVoucher : owns
+Member "1" -- "0..*" PointOfValueAccount : owns
+Member "1" -- "0..*" SaleTransaction : makes
+
+MemberCarePackage "1" -- "0..*" MemberCarePackageLog : has logs
+MemberVoucher "1" -- "0..*" MemberVoucherLog : has logs
+
+SaleTransaction "1" -- "1..*" SaleTransactionItem : contains
+SaleTransaction "1" -- "0..*" PaymentToSaleTransaction : paid via
+
+PaymentToSaleTransaction "0..*" -- "1" PaymentMethod : uses
+
+' Conceptual Dependencies for Services
+RevenueService ..> SaleTransaction : accesses
+RevenueService ..> PointOfValueAccount : uses
+RevenueService ..> MemberVoucher : uses
+RevenueService ..> MemberCarePackage : uses
+
+@enduml

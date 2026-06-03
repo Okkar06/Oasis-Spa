@@ -1,0 +1,29 @@
+@startuml
+title Dashboard Sequence Diagram
+
+actor User
+participant "UI (Dashboard Page)" as UI
+participant "Store (Data Management\nuseState)" as Store
+participant "Backend" as Backend
+
+User -> UI: Open Dashboard
+activate UI
+
+UI -> Store: init state (loading, stats)
+activate Store
+
+UI -> Store: fetchStats()
+Store -> Backend: GET /dashboard/stats
+activate Backend
+
+Backend --> Store: Return { monthlyRevenue, avgTransaction, topServices, trend }
+deactivate Backend
+
+Store -> Store: setStats(data)\nsetLoading(false)
+Store --> UI: Update UI components with data
+deactivate Store
+
+UI --> User: Render Dashboard Cards & Charts
+deactivate UI
+
+@enduml

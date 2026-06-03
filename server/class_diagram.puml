@@ -1,0 +1,127 @@
+@startuml
+title Class Diagram: Dashboard & Revenue Modules
+skinparam classAttributeIconSize 0
+
+package "Controllers" {
+    class DashboardController {
+        + getDashboardStats(req: Request, res: Response): Promise<void>
+    }
+
+    class RevenueController {
+        + getMVMonthlyReport(req: Request, res: Response): Promise<void>
+        + getMCPMonthlyReport(req: Request, res: Response): Promise<void>
+        + getAdHocMonthlyReport(req: Request, res: Response): Promise<void>
+        + getTransactionDateRange(req: Request, res: Response): Promise<void>
+        + getMVDeferredRevenue(req: Request, res: Response): Promise<void>
+        + getMCPDeferredRevenue(req: Request, res: Response): Promise<void>
+        + getCellBreakdown(req: Request, res: Response): Promise<void>
+        + updateCellValue(req: Request, res: Response): Promise<void>
+    }
+}
+
+package "Models / Services" {
+    class DashboardModel {
+        + getMonthlyRevenue(): Promise<{revenue: number, count: number, average: number}>
+        + getTopSellingServices(limit: number): Promise<Array<{serviceName: string, count: number}>>
+        + getRevenueTrend(days: number): Promise<Array<{date: string, amount: number}>>
+    }
+
+    class RevenueModel {
+        + getMVMonthlyReport(year: number, month: number): Promise<ReportData>
+        + getMCPMonthlyReport(year: number, month: number): Promise<ReportData>
+        + getAdHocMonthlyReport(year: number, month: number): Promise<ReportData>
+        + getTransactionDateRange(): Promise<DateRange>
+        + getMVDeferredRevenue(): Promise<DeferredData>
+        + getMCPDeferredRevenue(): Promise<DeferredData>
+        + getRevenueCellBreakdown(params: CellBreakdownParams): Promise<BreakdownData>
+        + updateRevenueCellValue(params: UpdateCellParams): Promise<void>
+    }
+}
+
+package "Database Entities (Prisma)" {
+    class SaleTransaction {
+        + id: BigInt
+        + receiptNo: String
+        + totalPaidAmount: Decimal
+        + outstandingTotalPaymentAmount: Decimal
+        + gstAmount: Decimal
+        + saleTransactionStatus: String
+        + createdAt: DateTime
+    }
+
+    class SaleTransactionItem {
+        + id: BigInt
+        + serviceName: String
+        + productName: String
+        + quantity: Int
+        + amount: Decimal
+        + itemType: String
+    }
+
+    class PaymentToSaleTransaction {
+        + id: BigInt
+        + amount: Decimal
+        + paymentMethodId: BigInt
+        + createdAt: DateTime
+    }
+
+    class PaymentMethod {
+        + id: BigInt
+        + paymentMethodName: String
+        + isEnabled: Boolean
+        + isIncome: Boolean
+    }
+
+    class MemberVoucher {
+        + id: BigInt
+        + memberVoucherName: String
+        + currentBalance: Decimal
+        + startingBalance: Decimal
+    }
+
+    class MemberCarePackage {
+        + id: BigInt
+        + packageName: String
+        + balance: Decimal
+        + totalPrice: Decimal
+    }
+
+    class MemberVoucherTransactionLog {
+        + id: BigInt
+        + type: String
+        + amountChange: Decimal
+        + currentBalance: Decimal
+        + serviceDate: DateTime
+    }
+
+    class MemberCarePackageTransactionLog {
+        + id: BigInt
+        + type: String
+        + amountChanged: Decimal
+        + transactionDate: DateTime
+    }
+}
+
+' Relationships - Controllers to Models
+DashboardController ..> DashboardModel : uses
+RevenueController ..> RevenueModel : uses
+
+' Relationships - Models to Entities
+DashboardModel ..> PaymentToSaleTransaction : queries
+DashboardModel ..> SaleTransactionItem : queries
+RevenueModel ..> PaymentToSaleTransaction : queries
+RevenueModel ..> SaleTransaction : queries
+RevenueModel ..> SaleTransactionItem : queries
+RevenueModel ..> MemberVoucherTransactionLog : queries
+RevenueModel ..> MemberCarePackageTransactionLog : queries
+
+' Relationships - Database Entities
+SaleTransaction "1" *-- "*" SaleTransactionItem : contains
+SaleTransaction "1" *-- "*" PaymentToSaleTransaction : has payments
+PaymentToSaleTransaction "*" -- "1" PaymentMethod : uses
+SaleTransactionItem "*" -- "0..1" MemberVoucher : linked to
+SaleTransactionItem "*" -- "0..1" MemberCarePackage : linked to
+MemberVoucher "1" *-- "*" MemberVoucherTransactionLog : has logs
+MemberCarePackage "1" *-- "*" MemberCarePackageTransactionLog : has logs
+
+@enduml

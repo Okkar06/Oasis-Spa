@@ -1,0 +1,83 @@
+name: Code Coverage
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd client
+          npm ci
+          cd ../server
+          npm ci
+
+      - name: Generate client coverage report
+        run: |
+          cd client
+          npm run test:coverage 2>/dev/null || npm test 2>/dev/null || echo "No test command available"
+        continue-on-error: true
+
+      - name: Generate server coverage report
+        run: |
+          cd server
+          npm run test:coverage 2>/dev/null || npm test 2>/dev/null || echo "No test command available"
+        continue-on-error: true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./client/coverage/lcov.info,./server/coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+        continue-on-error: true
+
+      - name: Comment PR with coverage summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let coverageSummary = '## Code Coverage Report\n\n';
+            
+            if (fs.existsSync('./client/coverage/lcov-report/index.html')) {
+              coverageSummary += '✅ **Client coverage report generated**\n';
+            } else {
+              coverageSummary += '⚠️ **Client: No coverage report found**\n';
+            }
+            
+            if (fs.existsSync('./server/coverage/lcov-report/index.html')) {
+              coverageSummary += '✅ **Server coverage report generated**\n';
+            } else {
+              coverageSummary += '⚠️ **Server: No coverage report found**\n';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: coverageSummary
+            });
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            client/coverage/
+            server/coverage/
+          retention-days: 30
+

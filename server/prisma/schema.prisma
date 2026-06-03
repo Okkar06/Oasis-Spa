@@ -1,0 +1,785 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "linux-musl", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum CustomerType {
+  Member
+  Walk_In_Customer
+
+  @@map("customer_type")
+}
+
+enum ItemType {
+  Product
+  Service
+  Member_Care_Package
+  Membership_Account
+  Member_Voucher @map("Member Voucher")
+
+  @@map("item_type")
+}
+
+enum CustomerTypeEnum {
+  member           @map("member")
+  walk_in_customer @map("walk-in-customer")
+
+  @@map("customer_type_enum")
+}
+
+// Models
+model CarePackage {
+  id                        BigInt                    @id @default(autoincrement())
+  carePackageName           String                    @map("care_package_name") @db.VarChar(200)
+  carePackageRemarks        String?                   @map("care_package_remarks") @db.Text
+  carePackagePrice          Decimal                   @map("care_package_price") @db.Decimal(10, 2)
+  createdAt                 DateTime                  @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime                  @map("updated_at") @db.Timestamptz(6)
+  carePackageCustomizable   Boolean                   @default(false) @map("care_package_customizable")
+  status                    String                    @db.VarChar(50)
+  createdBy                 BigInt?                   @map("created_by")
+  lastUpdatedBy             BigInt?                   @map("last_updated_by")
+  
+  createdByEmployee         Employee?                 @relation("CarePackageCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  lastUpdatedByEmployee     Employee?                 @relation("CarePackageUpdatedBy", fields: [lastUpdatedBy], references: [id], onDelete: SetNull)
+  carePackageItemDetails    CarePackageItemDetail[]
+
+  @@index([createdBy], map: "idx_care_packages_created_by")
+  @@map("care_packages")
+}
+
+model CarePackageItemDetail {
+  id                              BigInt      @id @default(autoincrement())
+  carePackageItemDetailsQuantity  Int         @map("care_package_item_details_quantity")
+  carePackageItemDetailsDiscount  Decimal     @map("care_package_item_details_discount") @db.Decimal(10, 2)
+  carePackageItemDetailsPrice     Decimal     @map("care_package_item_details_price") @db.Decimal(10, 2)
+  serviceId                       BigInt      @map("service_id")
+  carePackageId                   BigInt      @map("care_package_id")
+  
+  service                         Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  carePackage                     CarePackage @relation(fields: [carePackageId], references: [id], onDelete: Cascade)
+
+  @@index([carePackageId], map: "idx_care_package_item_details_care_package_id")
+  @@index([serviceId], map: "idx_care_package_item_details_service_id")
+  @@map("care_package_item_details")
+}
+
+model Employee {
+  id                                        BigInt                              @id @default(autoincrement())
+  employeeCode                              String                              @unique @map("employee_code") @db.VarChar(50)
+  employeeContact                           String                              @map("employee_contact") @db.VarChar(20)
+  employeeEmail                             String                              @unique @map("employee_email") @db.VarChar(255)
+  employeeIsActive                          Boolean                             @map("employee_is_active")
+  employeeName                              String                              @map("employee_name") @db.VarChar(100)
+  createdAt                                 DateTime                            @map("created_at") @db.Timestamptz(6)
+  updatedAt                                 DateTime                            @map("updated_at") @db.Timestamptz(6)
+  
+  employeeToPositions                       EmployeeToPosition[]
+  carePackagesCreated                       CarePackage[]                       @relation("CarePackageCreatedBy")
+  carePackagesUpdated                       CarePackage[]                       @relation("CarePackageUpdatedBy")
+  memberCarePackages                        MemberCarePackage[]
+  memberCarePackageTransactionLogs          MemberCarePackageTransactionLog[]
+  membersCreated                            Member[]
+  productsCreated                           Product[]                           @relation("ProductCreatedBy")
+  productsUpdated                           Product[]                           @relation("ProductUpdatedBy")
+  servicesCreated                           Service[]                           @relation("ServiceCreatedBy")
+  servicesUpdated                           Service[]                           @relation("ServiceUpdatedBy")
+  appointmentsServicing                     Appointment[]                       @relation("AppointmentServicingEmployee")
+  appointmentsCreated                       Appointment[]                       @relation("AppointmentCreatedBy")
+  appointmentsUpdated                       Appointment[]                       @relation("AppointmentUpdatedBy")
+  memberVoucherTransactionLogsServiced      MemberVoucherTransactionLog[]       @relation("MVTransactionLogServicedBy")
+  memberVoucherTransactionLogsCreated       MemberVoucherTransactionLog[]       @relation("MVTransactionLogCreatedBy")
+  memberVoucherTransactionLogsUpdated       MemberVoucherTransactionLog[]       @relation("MVTransactionLogUpdatedBy")
+  memberVouchersCreated                     MemberVoucher[]                     @relation("MemberVoucherCreatedBy")
+  memberVouchersHandled                     MemberVoucher[]                     @relation("MemberVoucherHandledBy")
+  memberVouchersUpdated                     MemberVoucher[]                     @relation("MemberVoucherUpdatedBy")
+  paymentToSaleTransactionsCreated          PaymentToSaleTransaction[]          @relation("PaymentToSaleTransactionCreatedBy")
+  paymentToSaleTransactionsUpdated          PaymentToSaleTransaction[]          @relation("PaymentToSaleTransactionUpdatedBy")
+  saleTransactionsHandled                   SaleTransaction[]                   @relation("SaleTransactionHandledBy")
+  saleTransactionsCreated                   SaleTransaction[]                   @relation("SaleTransactionCreatedBy")
+  timetables                                Timetable[]                         @relation("TimetableEmployee")
+  timetablesCreated                         Timetable[]                         @relation("TimetableCreatedBy")
+  timetablesUpdated                         Timetable[]                         @relation("TimetableUpdatedBy")
+  voucherTemplatesCreated                   VoucherTemplate[]                   @relation("VoucherTemplateCreatedBy")
+  voucherTemplatesUpdated                   VoucherTemplate[]                   @relation("VoucherTemplateUpdatedBy")
+  employeeCommissions                       EmployeeCommission[]
+  storedValueAccountsCreated                StoredValueAccount[]                @relation("StoredValueAccountCreatedBy")
+  storedValueAccountsUpdated                StoredValueAccount[]                @relation("StoredValueAccountUpdatedBy")
+  storedValueAccountTransactionLogsCreated  StoredValueAccountTransactionLog[]  @relation("SVATransactionLogCreatedBy")
+  storedValueAccountTransactionLogsUpdated  StoredValueAccountTransactionLog[]  @relation("SVATransactionLogUpdatedBy")
+
+  @@map("employees")
+}
+
+model EmployeeToPosition {
+  id         BigInt   @id @default(autoincrement())
+  employeeId BigInt   @map("employee_id")
+  positionId BigInt   @map("position_id")
+  createdAt  DateTime @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @map("updated_at") @db.Timestamptz(6)
+  
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, positionId], map: "employee_to_position_employee_id_position_id_key")
+  @@map("employee_to_position")
+}
+
+model MemberCarePackage {
+  id             BigInt                    @id @default(autoincrement())
+  memberId       BigInt                    @map("member_id")
+  employeeId     BigInt                    @map("employee_id")
+  packageName    String                    @map("package_name") @db.VarChar(100)
+  status         String                    @db.VarChar(50)
+  totalPrice     Decimal                   @map("total_price") @db.Decimal(10, 2)
+  balance        Decimal                   @db.Decimal(10, 2)
+  createdAt      DateTime                  @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                  @map("updated_at") @db.Timestamptz(6)
+  packageRemarks String?                   @map("package_remarks") @db.VarChar(255)
+  
+  member         Member                    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  employee       Employee                  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  details        MemberCarePackageDetail[]
+  saleTransactionItems SaleTransactionItem[]
+
+  @@index([memberId], map: "idx_member_care_packages_member_id")
+  @@index([employeeId], map: "idx_member_care_packages_employee_id")
+  @@map("member_care_packages")
+}
+
+model MemberCarePackageDetail {
+  id                   BigInt                            @id @default(autoincrement())
+  serviceName          String                            @map("service_name") @db.VarChar(100)
+  discount             Decimal                           @db.Decimal(10, 2)
+  price                Decimal                           @db.Decimal(10, 2)
+  memberCarePackageId  BigInt                            @map("member_care_package_id")
+  serviceId            BigInt?                           @map("service_id")
+  status               String                            @db.VarChar(50)
+  quantity             Int
+  
+  memberCarePackage    MemberCarePackage                 @relation(fields: [memberCarePackageId], references: [id], onDelete: Cascade)
+  service              Service?                          @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  transactionLogs      MemberCarePackageTransactionLog[]
+
+  @@index([memberCarePackageId], map: "idx_member_care_package_details_mcp_id")
+  @@map("member_care_package_details")
+}
+
+model Status {
+  id                BigInt              @id @default(autoincrement())
+  statusName        String              @unique @map("status_name") @db.VarChar(50)
+  statusDescription String?             @map("status_description") @db.VarChar(255)
+  createdAt         DateTime            @map("created_at") @db.Timestamptz(6)
+  
+  users             User[]
+  membershipAccounts MembershipAccount[]
+
+  @@map("statuses")
+}
+
+model MemberCarePackageTransactionLog {
+  id                         BigInt                  @id @default(autoincrement())
+  type                       String                  @db.VarChar(100)
+  description                String                  @db.Text
+  transactionDate            DateTime                @map("transaction_date") @db.Timestamptz(6)
+  transactionAmount          Decimal                 @map("transaction_amount") @db.Decimal(10, 2)
+  amountChanged              Decimal                 @map("amount_changed") @db.Decimal(10, 2)
+  createdAt                  DateTime                @map("created_at") @db.Timestamptz(6)
+  memberCarePackageDetailsId BigInt                  @map("member_care_package_details_id")
+  employeeId                 BigInt                  @map("employee_id")
+  serviceId                  BigInt?                 @map("service_id")
+  
+  memberCarePackageDetail    MemberCarePackageDetail @relation(fields: [memberCarePackageDetailsId], references: [id], onDelete: Cascade)
+  employee                   Employee                @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  service                    Service?                @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([memberCarePackageDetailsId], map: "idx_mcp_transaction_logs_details_id")
+  @@map("member_care_package_transaction_logs")
+}
+
+model Member {
+  id                 BigInt                @id @default(autoincrement())
+  name               String                @db.VarChar(100)
+  email              String?               @unique @db.VarChar(100)
+  contact            String?               @db.VarChar(20)
+  dob                DateTime?             @db.Date
+  sex                String?               @db.VarChar(10)
+  remarks            String?               @db.VarChar(255)
+  address            String?               @db.VarChar(255)
+  nric               String?               @unique @db.VarChar(9)
+  membershipTypeId   BigInt?               @map("membership_type_id")
+  cardNumber         String?               @map("card_number") @db.VarChar(20)
+  createdAt          DateTime?             @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime?             @map("updated_at") @db.Timestamptz(6)
+  createdBy          BigInt?               @map("created_by")
+  
+  membershipType     MembershipType?       @relation(fields: [membershipTypeId], references: [id], onDelete: SetNull)
+  createdByEmployee  Employee?             @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  memberCarePackages MemberCarePackage[]
+  membershipAccounts MembershipAccount[]
+  appointments       Appointment[]
+  memberVouchers     MemberVoucher[]
+  saleTransactions   SaleTransaction[]
+  storedValueAccounts StoredValueAccount[]
+
+  @@index([membershipTypeId], map: "idx_members_membership_type_id")
+  @@map("members")
+}
+
+model MembershipAccount {
+  id               BigInt         @id @default(autoincrement()) @map("id")
+  memberId         BigInt         @map("member_id")
+  membershipTypeId BigInt         @map("membership_type_id")
+  startDate        DateTime       @map("start_date") @db.Timestamp(6)
+  endDate          DateTime?      @map("end_date") @db.Timestamp(6)
+  isActive         Boolean        @map("is_active")
+  createdAt        DateTime       @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime       @map("updated_at") @db.Timestamp(6)
+  statusId         BigInt         @map("status_id")
+  
+  member           Member         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  membershipType   MembershipType @relation(fields: [membershipTypeId], references: [id], onDelete: Restrict)
+  status           Status         @relation(fields: [statusId], references: [id], onDelete: Restrict)
+
+  @@index([memberId], map: "idx_membership_accounts_member_id")
+  @@index([membershipTypeId], map: "idx_membership_accounts_membership_type_id")
+  @@index([statusId], map: "idx_membership_accounts_status_id")
+  @@map("membership_accounts")
+}
+
+model MembershipType {
+  id                                      BigInt              @id @default(autoincrement())
+  membershipTypeName                      String              @unique @map("membership_type_name") @db.VarChar(50)
+  defaultPercentageDiscountForProducts    Decimal?            @map("default_percentage_discount_for_products") @db.Decimal
+  defaultPercentageDiscountForServices    Decimal?            @map("default_percentage_discount_for_services") @db.Decimal
+  createdAt                               DateTime?           @map("created_at") @db.Timestamptz(6)
+  updatedAt                               DateTime?           @map("updated_at") @db.Timestamptz(6)
+  createdBy                               BigInt              @map("created_by")
+  lastUpdatedBy                           BigInt              @map("last_updated_by")
+  
+  members                                 Member[]
+  membershipAccounts                      MembershipAccount[]
+
+  @@map("membership_types")
+}
+
+model PaymentMethod {
+  id                    BigInt                     @id @default(autoincrement())
+  paymentMethodName     String                     @map("payment_method_name") @db.Text
+  isEnabled             Boolean                    @map("is_enabled")
+  isIncome              Boolean                    @map("is_income")
+  showOnPaymentPage     Boolean                    @default(true) @map("show_on_payment_page")
+  isProtected           Boolean                    @default(false) @map("is_protected")
+  percentageRate        Decimal?                   @map("percentage_rate") @db.Decimal(5, 2)
+  createdAt             DateTime                   @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                   @map("updated_at") @db.Timestamptz(6)
+  
+  paymentToSaleTransactions PaymentToSaleTransaction[]
+
+  @@map("payment_methods")
+}
+
+model Position {
+  id                  BigInt               @id @default(autoincrement())
+  positionName        String               @unique @map("position_name") @db.VarChar(255)
+  positionDescription String?              @map("position_description") @db.VarChar(255)
+  positionIsActive    Boolean?             @default(true) @map("position_is_active")
+  createdAt           DateTime?            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime?            @default(now()) @map("updated_at") @db.Timestamptz(6)
+  
+  employeeToPositions EmployeeToPosition[]
+
+  @@map("positions")
+}
+
+model ProductCategory {
+  id                        BigInt    @id @default(autoincrement())
+  productCategoryName       String    @unique @map("product_category_name") @db.VarChar(255)
+  productCategorySequenceNo Int       @map("product_category_sequence_no")
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime  @map("updated_at") @db.Timestamptz(6)
+  
+  products                  Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id                   BigInt           @id @default(autoincrement())
+  productName          String           @map("product_name") @db.VarChar(255)
+  productDescription   String?          @map("product_description") @db.VarChar(255)
+  productSequenceNo    Int?             @map("product_sequence_no")
+  productRemarks       String?          @map("product_remarks") @db.Text
+  productUnitSalePrice Decimal          @map("product_unit_sale_price") @db.Decimal(10, 2)
+  productUnitCostPrice Decimal          @map("product_unit_cost_price") @db.Decimal(10, 2)
+  productIsEnabled     Boolean?         @default(true) @map("product_is_enabled")
+  createdAt            DateTime?        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime?        @default(now()) @map("updated_at") @db.Timestamptz(6)
+  productCategoryId    BigInt?          @map("product_category_id")
+  createdBy            BigInt?          @map("created_by")
+  updatedBy            BigInt?          @map("updated_by")
+  
+  productCategory      ProductCategory? @relation(fields: [productCategoryId], references: [id], onDelete: SetNull)
+  createdByEmployee    Employee?        @relation("ProductCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByEmployee    Employee?        @relation("ProductUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([productCategoryId], map: "idx_products_product_category_id")
+  @@index([productName], map: "idx_products_product_name")
+  @@map("products")
+}
+
+model Role {
+  id          BigInt   @id @default(autoincrement())
+  roleName    String   @unique @map("role_name") @db.VarChar(20)
+  description String   @db.VarChar(50)
+  createdAt   DateTime @map("created_at") @db.Timestamptz(6)
+  
+  userToRoles UserToRole[]
+
+  @@map("roles")
+}
+
+model Service { 
+  id                               BigInt                            @id @default(autoincrement())
+  serviceName                      String                            @unique @map("service_name") @db.VarChar(255)
+  serviceDescription               String?                           @map("service_description") @db.VarChar(255)
+  serviceRemarks                   String?                           @map("service_remarks") @db.Text
+  serviceDuration                  Decimal                           @map("service_duration") @db.Decimal
+  servicePrice                     Decimal                           @map("service_price") @db.Decimal(10, 2)
+  serviceIsEnabled                 Boolean                           @map("service_is_enabled")
+  createdAt                        DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                        DateTime                          @default(now()) @map("updated_at") @db.Timestamptz(6)
+  serviceCategoryId                BigInt                            @map("service_category_id")
+  serviceSequenceNo                Int                               @map("service_sequence_no")
+  createdBy                        BigInt?                           @map("created_by")
+  updatedBy                        BigInt?                           @map("updated_by")
+  
+  serviceCategory                  ServiceCategory                   @relation(fields: [serviceCategoryId], references: [id], onDelete: Restrict)
+  createdByEmployee                Employee?                         @relation("ServiceCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByEmployee                Employee?                         @relation("ServiceUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  carePackageItemDetails           CarePackageItemDetail[]
+  memberCarePackageDetails         MemberCarePackageDetail[]
+  memberCarePackageTransactionLogs MemberCarePackageTransactionLog[]
+  memberVoucherDetails             MemberVoucherDetail[]
+  voucherTemplateDetails           VoucherTemplateDetail[]
+
+  @@index([serviceCategoryId], map: "fki_cs_service_service_category_id_fkey")
+  @@index([serviceName], map: "idx_services_service_name")
+  @@map("services")
+}
+
+model ServiceCategory {
+  id                        BigInt                  @id @default(autoincrement())
+  serviceCategoryName       String                  @unique @map("service_category_name") @db.VarChar(255)
+  serviceCategorySequenceNo Int?                    @map("service_category_sequence_no")
+  createdAt                 DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime                @map("updated_at") @db.Timestamptz(6)
+  
+  services                  Service[]
+  voucherTemplateDetails    VoucherTemplateDetail[]
+
+  @@map("service_categories")
+}
+
+model UserToRole {
+  id         BigInt   @id @default(autoincrement())
+  userAuthId BigInt   @map("user_auth_id")
+  roleId     BigInt   @map("role_id")
+  createdAt  DateTime @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @map("updated_at") @db.Timestamptz(6)
+  
+  userAuth   UserAuth @relation(fields: [userAuthId], references: [id])
+  role       Role     @relation(fields: [roleId], references: [id])
+
+  @@index([userAuthId], map: "idx_user_to_role_user_auth_id")
+  @@index([roleId], map: "idx_user_to_role_role_id")
+  @@map("user_to_role")
+}
+
+model Appointment {
+  id                   BigInt    @id @default(autoincrement())
+  memberId             BigInt?   @map("member_id")
+  servicingEmployeeId  BigInt?   @map("servicing_employee_id")
+  appointmentDate      DateTime? @map("appointment_date") @db.Timestamptz(6)
+  startTime            DateTime? @map("start_time") @db.Timestamptz(6)
+  endTime              DateTime? @map("end_time") @db.Timestamptz(6)
+  remarks              String?   @db.Text
+  createdAt            DateTime? @map("created_at") @db.Timestamptz(6)
+  createdBy            BigInt?   @map("created_by")
+  updatedAt            DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy            BigInt?   @map("updated_by")
+  
+  member               Member?   @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  servicingEmployee    Employee? @relation("AppointmentServicingEmployee", fields: [servicingEmployeeId], references: [id], onDelete: SetNull)
+  createdByEmployee    Employee? @relation("AppointmentCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByEmployee    Employee? @relation("AppointmentUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([memberId], map: "idx_appointments_member_id")
+  @@index([servicingEmployeeId], map: "idx_appointments_servicing_employee_id")
+  @@index([appointmentDate], map: "idx_appointments_appointment_date")
+  @@map("appointments")
+}
+
+model MemberVoucherDetail {
+  id              BigInt         @id @default(autoincrement())
+  memberVoucherId BigInt         @map("member_voucher_id")
+  serviceId       BigInt         @map("service_id")
+  serviceName     String?        @map("service_name") @db.VarChar(100)
+  originalPrice   Decimal?       @map("original_price") @db.Decimal(10, 2)
+  customPrice     Decimal?       @map("custom_price") @db.Decimal(10, 2)
+  discount        Decimal?       @db.Decimal(10, 2)
+  finalPrice      Decimal?       @map("final_price") @db.Decimal(10, 2)
+  duration        Int?
+  createdAt       DateTime?      @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime?      @map("updated_at") @db.Timestamptz(6)
+  
+  memberVoucher   MemberVoucher  @relation(fields: [memberVoucherId], references: [id], onDelete: Cascade)
+  service         Service        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([memberVoucherId], map: "idx_member_voucher_details_mv_id")
+  @@map("member_voucher_details")
+}
+
+model MemberVoucherTransactionLog {
+  id                 BigInt         @id @default(autoincrement())
+  memberVoucherId    BigInt         @map("member_voucher_id")
+  serviceDescription String?        @map("service_description") @db.VarChar(500)
+  serviceDate        DateTime?      @map("service_date") @db.Timestamptz(6)
+  currentBalance     Decimal?       @map("current_balance") @db.Decimal(10, 2)
+  amountChange       Decimal?       @map("amount_change") @db.Decimal
+  servicedBy         BigInt?        @map("serviced_by")
+  type               String?        @db.VarChar(25)
+  createdBy          BigInt?        @map("created_by")
+  lastUpdatedBy      BigInt?        @map("last_updated_by")
+  createdAt          DateTime?      @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime?      @map("updated_at") @db.Timestamptz(6)
+  
+  memberVoucher      MemberVoucher  @relation(fields: [memberVoucherId], references: [id], onDelete: Cascade)
+  servicedByEmployee Employee?      @relation("MVTransactionLogServicedBy", fields: [servicedBy], references: [id], onDelete: SetNull)
+  createdByEmployee  Employee?      @relation("MVTransactionLogCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByEmployee  Employee?      @relation("MVTransactionLogUpdatedBy", fields: [lastUpdatedBy], references: [id], onDelete: SetNull)
+
+  @@map("member_voucher_transaction_logs")
+}
+
+model MemberVoucher {
+  id                  BigInt                        @id @default(autoincrement())
+  memberVoucherName   String                        @map("member_voucher_name") @db.VarChar(100)
+  voucherTemplateId   BigInt                        @map("voucher_template_id")
+  memberId            BigInt                        @map("member_id")
+  currentBalance      Decimal?                      @map("current_balance") @db.Decimal(10, 2)
+  startingBalance     Decimal?                      @map("starting_balance") @db.Decimal(10, 2)
+  freeOfCharge        Decimal?                      @map("free_of_charge") @db.Decimal(10, 2)
+  defaultTotalPrice   Decimal?                      @map("default_total_price") @db.Decimal(10, 2)
+  status              String?                       @db.VarChar(50)
+  remarks             String?                       @db.VarChar(500)
+  createdBy           BigInt?                       @map("created_by")
+  handledBy           BigInt?                       @map("handled_by")
+  lastUpdatedBy       BigInt?                       @map("last_updated_by")
+  createdAt           DateTime?                     @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime?                     @map("updated_at") @db.Timestamptz(6)
+  
+  voucherTemplate     VoucherTemplate               @relation(fields: [voucherTemplateId], references: [id], onDelete: Restrict)
+  member              Member                        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdByEmployee   Employee?                     @relation("MemberVoucherCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  handledByEmployee   Employee?                     @relation("MemberVoucherHandledBy", fields: [handledBy], references: [id], onDelete: SetNull)
+  updatedByEmployee   Employee?                     @relation("MemberVoucherUpdatedBy", fields: [lastUpdatedBy], references: [id], onDelete: SetNull)
+  memberVoucherDetails MemberVoucherDetail[]
+  transactionLogs     MemberVoucherTransactionLog[]
+  saleTransactionItems SaleTransactionItem[]
+
+  @@index([memberId], map: "idx_member_vouchers_member_id")
+  @@index([voucherTemplateId], map: "idx_member_vouchers_voucher_template_id")
+  @@map("member_vouchers")
+}
+
+model PaymentToSaleTransaction {
+  id                BigInt           @id @default(autoincrement())
+  paymentMethodId   BigInt?          @map("payment_method_id")
+  saleTransactionId BigInt?          @map("sale_transaction_id")
+  amount            Decimal?         @db.Decimal(10, 2)
+  remarks           String?          @db.Text
+  createdBy         BigInt?          @map("created_by")
+  createdAt         DateTime?        @map("created_at") @db.Timestamptz(6)
+  updatedBy         BigInt?          @map("updated_by")
+  updatedAt         DateTime?        @map("updated_at") @db.Timestamptz(6)
+  
+  paymentMethod     PaymentMethod?   @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  saleTransaction   SaleTransaction? @relation(fields: [saleTransactionId], references: [id], onDelete: Cascade)
+  createdByEmployee Employee?        @relation("PaymentToSaleTransactionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByEmployee Employee?        @relation("PaymentToSaleTransactionUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([saleTransactionId], map: "idx_payment_to_sale_trans_sale_id")
+  @@map("payment_to_sale_transactions")
+}
+
+model SaleTransactionItem {
+  id                  BigInt             @id @default(autoincrement())
+  saleTransactionId   BigInt?            @map("sale_transaction_id")
+  serviceName         String?            @map("service_name") @db.VarChar(255)
+  productName         String?            @map("product_name") @db.VarChar(255)
+  memberCarePackageId BigInt?            @map("member_care_package_id")
+  memberVoucherId     BigInt?            @map("member_voucher_id")
+  originalUnitPrice   Decimal?           @map("original_unit_price") @db.Decimal(10, 2)
+  customUnitPrice     Decimal?           @map("custom_unit_price") @db.Decimal(10, 2)
+  discountPercentage  Decimal?           @map("discount_percentage") @db.Decimal(5, 2)
+  quantity            Int?
+  remarks             String?            @db.VarChar(500)
+  amount              Decimal?           @db.Decimal(10, 2)
+  itemType            String?            @map("item_type") @db.VarChar(255)
+  
+  saleTransaction     SaleTransaction?   @relation(fields: [saleTransactionId], references: [id], onDelete: Cascade)
+  memberCarePackage   MemberCarePackage? @relation(fields: [memberCarePackageId], references: [id], onDelete: SetNull)
+  memberVoucher       MemberVoucher?     @relation(fields: [memberVoucherId], references: [id], onDelete: SetNull)
+
+  @@index([saleTransactionId], map: "idx_sale_transaction_items_sale_id")
+  @@map("sale_transaction_items")
+}
+
+model SaleTransaction {
+  id                              BigInt                     @id @default(autoincrement())
+  customerType                    String?                    @map("customer_type") @db.VarChar(50)
+  memberId                        BigInt?                    @map("member_id")
+  totalPaidAmount                 Decimal?                   @map("total_paid_amount") @db.Decimal
+  outstandingTotalPaymentAmount   Decimal?                   @map("outstanding_total_payment_amount") @db.Decimal
+  gstAmount                       Decimal?                   @map("gst_amount") @db.Decimal(10, 2)
+  saleTransactionStatus           String?                    @map("sale_transaction_status") @db.VarChar(25)
+  remarks                         String?                    @db.VarChar(500)
+  receiptNo                       String?                    @map("receipt_no") @db.VarChar(80)
+  referenceSalesTransactionId     BigInt?                    @map("reference_sales_transaction_id")
+  processPayment                  Boolean                    @default(false) @map("process_payment")
+  handledBy                       BigInt?                    @map("handled_by")
+  createdBy                       BigInt?                    @map("created_by")
+  createdAt                       DateTime?                  @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime?                  @map("updated_at") @db.Timestamptz(6)
+  
+  member                          Member?                    @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  referenceSalesTransaction       SaleTransaction?           @relation("SaleTransactionReference", fields: [referenceSalesTransactionId], references: [id], onDelete: SetNull)
+  referencedBySaleTransactions    SaleTransaction[]          @relation("SaleTransactionReference")
+  handledByEmployee               Employee?                  @relation("SaleTransactionHandledBy", fields: [handledBy], references: [id], onDelete: SetNull)
+  createdByEmployee               Employee?                  @relation("SaleTransactionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  saleTransactionItems            SaleTransactionItem[]
+  paymentToSaleTransactions       PaymentToSaleTransaction[]
+
+  @@index([memberId], map: "idx_sale_transactions_member_id")
+  @@index([handledBy], map: "idx_sale_transactions_handled_by")
+  @@index([createdAt], map: "idx_sale_transactions_created_at")
+  @@map("sale_transactions")
+}
+
+model Timetable {
+  id                 BigInt    @id @default(autoincrement())
+  employeeId         BigInt    @map("employee_id")
+  restdayNumber      Int       @map("restday_number")
+  effectiveStartdate DateTime  @map("effective_startdate") @db.Timestamp(6)
+  effectiveEnddate   DateTime? @map("effective_enddate") @db.Timestamp(6)
+  createdBy          BigInt?   @map("created_by")
+  createdAt          DateTime? @map("created_at") @db.Timestamp(6)
+  updatedBy          BigInt?   @map("updated_by")
+  updatedAt          DateTime? @map("updated_at") @db.Timestamp(6)
+  
+  employee           Employee  @relation("TimetableEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  createdByEmployee  Employee? @relation("TimetableCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByEmployee  Employee? @relation("TimetableUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([employeeId], map: "idx_timetables_employee_id")
+  @@map("timetables")
+}
+
+model VoucherTemplateDetail {
+  id                 BigInt           @id @default(autoincrement())
+  voucherTemplateId  BigInt           @map("voucher_template_id")
+  serviceId          BigInt?          @map("service_id")
+  serviceName        String           @map("service_name") @db.VarChar(100)
+  originalPrice      Decimal          @map("original_price") @db.Decimal(10, 2)
+  customPrice        Decimal          @map("custom_price") @db.Decimal(10, 2)
+  discount           Decimal          @db.Decimal(10, 2)
+  finalPrice         Decimal          @map("final_price") @db.Decimal(10, 2)
+  duration           Int
+  serviceCategoryId  BigInt?          @map("service_category_id")
+  
+  voucherTemplate    VoucherTemplate  @relation(fields: [voucherTemplateId], references: [id], onDelete: Cascade)
+  service            Service?         @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  serviceCategory    ServiceCategory? @relation(fields: [serviceCategoryId], references: [id], onDelete: SetNull)
+
+  @@unique([serviceId, voucherTemplateId], map: "voucher_template_details_service_id_voucher_template_id_key")
+  @@index([voucherTemplateId], map: "idx_voucher_template_details_template_id")
+  @@index([serviceId], map: "idx_voucher_template_details_service_id")
+  @@index([serviceCategoryId], map: "idx_voucher_template_details_service_category_id")
+  @@map("voucher_template_details")
+}
+
+model VoucherTemplate {
+  id                      BigInt                  @id @default(autoincrement())
+  voucherTemplateName     String                  @unique @map("voucher_template_name") @db.VarChar(100)
+  defaultStartingBalance  Decimal?                @map("default_starting_balance") @db.Decimal(10, 2)
+  defaultFreeOfCharge     Decimal?                @map("default_free_of_charge") @db.Decimal(10, 2)
+  defaultTotalPrice       Decimal?                @map("default_total_price") @db.Decimal(10, 2)
+  remarks                 String?                 @db.VarChar(500)
+  status                  String?                 @db.VarChar(50)
+  createdBy               BigInt?                 @map("created_by")
+  lastUpdatedBy           BigInt?                 @map("last_updated_by")
+  createdAt               DateTime?               @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime?               @map("updated_at") @db.Timestamptz(6)
+  
+  createdByEmployee       Employee?               @relation("VoucherTemplateCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByEmployee       Employee?               @relation("VoucherTemplateUpdatedBy", fields: [lastUpdatedBy], references: [id], onDelete: SetNull)
+  voucherTemplateDetails  VoucherTemplateDetail[]
+  memberVouchers          MemberVoucher[]
+
+  @@map("voucher_templates")
+}
+
+model SystemParameter {
+  id            BigInt    @id @default(autoincrement())
+  startDateUtc  DateTime? @map("start_date_utc") @db.Timestamp(6)
+  endDateUtc    DateTime? @map("end_date_utc") @db.Timestamp(6)
+  isSimulation  Boolean   @map("is_simulation")
+
+  @@map("system_parameters")
+}
+
+model User {
+  id                  BigInt              @id @default(autoincrement())
+  username            String              @db.VarChar(50)
+  email               String              @db.VarChar(100)
+  preferredLanguage   String?             @map("preferred_language") @db.VarChar(10)
+  createdAt           DateTime            @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @map("updated_at") @db.Timestamptz(6)
+  verifiedStatusId    BigInt              @map("verified_status_id")
+  userAuthId          BigInt              @map("user_auth_id")
+  
+  userAuth            UserAuth            @relation(fields: [userAuthId], references: [id], onDelete: Cascade)
+  verifiedStatus      Status              @relation(fields: [verifiedStatusId], references: [id], onDelete: Restrict)
+  customTranslations  CustomTranslation[] @relation("CustomTranslationCreator")
+  personalTranslations CustomTranslation[] @relation("CustomTranslationUser")
+
+  @@map("users")
+}
+
+model UserAuth {
+  id         BigInt       @id @default(autoincrement())
+  password   String?      @db.VarChar(72)
+  createdAt  DateTime     @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime     @map("updated_at") @db.Timestamptz(6)
+  email      String?      @unique @db.VarChar(50)
+  
+  users      User[]
+  userToRoles UserToRole[]
+
+  @@map("user_auth")
+}
+
+model EmployeeCommission {
+  id                BigInt   @id @default(autoincrement())
+  itemType          String   @map("item_type") @db.VarChar(100)
+  itemId            BigInt   @map("item_id")
+  employeeId        BigInt   @map("employee_id")
+  performanceRate   Decimal  @map("performance_rate") @db.Decimal(5, 2)
+  performanceAmount Decimal  @map("performance_amount") @db.Decimal(10, 2)
+  commissionRate    Decimal  @map("commission_rate") @db.Decimal(5, 2)
+  commissionAmount  Decimal  @map("commission_amount") @db.Decimal(10, 2)
+  createdAt         DateTime @map("created_at") @db.Timestamptz(6)
+  remarks           String?  @db.Text
+  
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId], map: "idx_employee_commissions_employee_id")
+  @@map("employee_commissions")
+}
+
+model Setting {
+  id    BigInt @id @default(autoincrement())
+  type  String @db.VarChar(50)
+  key   String @db.VarChar(100)
+  value String @db.Text
+
+  @@unique([type, key], map: "settings_type_key")
+  @@map("settings")
+}
+
+model StoredValueAccount {
+  id                BigInt                             @id @default(autoincrement())
+  memberId          BigInt                             @map("member_id")
+  storedValue       Decimal                            @default(0.00) @map("stored_value") @db.Decimal(10, 2)
+  createdBy         BigInt?                            @map("created_by")
+  lastUpdatedBy     BigInt?                            @map("last_updated_by")
+  createdAt         DateTime                           @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                           @map("updated_at") @db.Timestamptz(6)
+  
+  member            Member                             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdByEmployee Employee?                          @relation("StoredValueAccountCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByEmployee Employee?                          @relation("StoredValueAccountUpdatedBy", fields: [lastUpdatedBy], references: [id], onDelete: SetNull)
+  transactionLogs   StoredValueAccountTransactionLog[]
+
+  @@index([memberId], map: "idx_stored_value_accounts_member_id")
+  @@index([createdBy], map: "idx_stored_value_accounts_created_by")
+  @@index([lastUpdatedBy], map: "idx_stored_value_accounts_last_updated_by")
+  @@map("stored_value_accounts")
+}
+
+model StoredValueAccountTransactionLog {
+  id                    BigInt             @id @default(autoincrement())
+  storedValueAccountId  BigInt             @map("stored_value_account_id")
+  storedValue           Decimal            @map("stored_value") @db.Decimal(10, 2)
+  amountChanged         Decimal            @map("amount_changed") @db.Decimal(10, 2)
+  transactionDate       DateTime           @map("transaction_date") @db.Timestamptz(6)
+  type                  String             @db.VarChar(50)
+  createdBy             BigInt?            @map("created_by")
+  lastUpdatedBy         BigInt?            @map("last_updated_by")
+  createdAt             DateTime           @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime           @map("updated_at") @db.Timestamptz(6)
+  
+  storedValueAccount    StoredValueAccount @relation(fields: [storedValueAccountId], references: [id], onDelete: Cascade)
+  createdByEmployee     Employee?          @relation("SVATransactionLogCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByEmployee     Employee?          @relation("SVATransactionLogUpdatedBy", fields: [lastUpdatedBy], references: [id], onDelete: SetNull)
+
+  @@index([storedValueAccountId], map: "idx_stored_value_accounts_transaction_logs_account_id")
+  @@index([createdBy], map: "idx_stored_value_accounts_transaction_logs_created_by")
+  @@index([lastUpdatedBy], map: "idx_stored_value_accounts_transaction_logs_updated_by")
+  @@map("stored_value_accounts_transaction_logs")
+}
+
+model CustomTranslation {
+  id              BigInt    @id @default(autoincrement())
+  sourceText      String    @map("source_text") @db.VarChar(500)
+  targetLanguage  String    @map("target_language") @db.VarChar(10)
+  translatedText  String    @map("translated_text") @db.VarChar(1000)
+  sourceLanguage  String    @default("en") @map("source_language") @db.VarChar(10)
+  type            String    @default("personal") @map("type") @db.VarChar(20) // "global" or "personal"
+  userId          BigInt?   @map("user_id") // null for global translations
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy       BigInt    @map("created_by")
+
+  creator         User      @relation("CustomTranslationCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  user            User?     @relation("CustomTranslationUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceText, targetLanguage, sourceLanguage, type, userId], map: "custom_translations_unique_idx")
+  @@index([targetLanguage], map: "custom_translations_target_language_idx")
+  @@index([userId], map: "custom_translations_user_id_idx")
+  @@index([type], map: "custom_translations_type_idx")
+  @@map("custom_translations")
+}
+
+model Translation {
+  id                BigInt   @id @default(autoincrement())
+  english           String   @db.VarChar(255)
+  chinese           String   @db.VarChar(255)
+  meaningInEnglish  String   @map("meaning_in_english") @db.VarChar(255)
+  meaningInChinese  String   @map("meaning_in_chinese") @db.VarChar(255)
+  page              String?  @db.VarChar(255)
+  createdAt         DateTime @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime @map("updated_at") @db.Timestamp(6)
+
+  @@map("translations")
+}

@@ -1,0 +1,52 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Audit client dependencies
+        run: |
+          cd client
+          npm ci
+          npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Audit server dependencies
+        run: |
+          cd server
+          npm ci
+          npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+

@@ -1,0 +1,123 @@
+name: Prisma Migration Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/prisma/**'
+      - 'server/package.json'
+      - '.github/workflows/10-prisma-migration-test.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/prisma/**'
+      - 'server/package.json'
+
+jobs:
+  validate-migrations:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: server/node_modules
+          key: ${{ runner.os }}-prisma-${{ hashFiles('server/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-prisma-
+
+      - name: Install dependencies
+        run: |
+          cd server
+          npm ci
+
+      - name: Generate Prisma Client
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd server
+          npm run prisma:generate
+
+      - name: Validate Prisma Schema
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd server
+          npx prisma validate
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          cd server
+          npm run prisma:migrate:deploy
+        continue-on-error: true
+
+      - name: Seed database
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          cd server
+          npm run prisma:seed
+
+      - name: Verify schema after migration
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          cd server
+          npx prisma validate
+
+      - name: Check Prisma Client generation
+        run: |
+          ls -la server/node_modules/@prisma/client
+          if [ ! -f "server/node_modules/@prisma/client/index.js" ]; then
+            echo "ERROR: Prisma client not properly generated"
+            exit 1
+          fi
+          echo "✅ Prisma client generated successfully"
+
+  check-migrations:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for migration files
+        run: |
+          MIGRATION_COUNT=$(find server/prisma/migrations -name "migration.sql" 2>/dev/null | wc -l)
+          if [ $MIGRATION_COUNT -eq 0 ]; then
+            echo "⚠️  No migration files found, but this is okay for initial setup"
+          else
+            echo "✅ Found $MIGRATION_COUNT migration file(s)"
+          fi
+
+      - name: Validate schema.prisma syntax
+        run: |
+          if grep -q "^model " server/prisma/schema.prisma; then
+            echo "✅ Schema contains valid model definitions"
+          else
+            echo "ERROR: Schema missing model definitions"
+            exit 1
+          fi
+

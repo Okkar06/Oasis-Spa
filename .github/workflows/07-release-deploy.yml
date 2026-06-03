@@ -1,0 +1,81 @@
+name: Release & Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Build client
+        run: |
+          cd client
+          npm ci
+          npm run build
+
+      - name: Build server
+        run: |
+          cd server
+          npm ci
+          npm run build
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 @^ 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            COMMITS=$(git log --oneline | head -20)
+          else
+            COMMITS=$(git log $PREVIOUS_TAG..HEAD --oneline)
+          fi
+          
+          echo "## Commits in this Release" > /tmp/release_notes.md
+          echo "$COMMITS" >> /tmp/release_notes.md
+          echo "" >> /tmp/release_notes.md
+          echo "### Build Artifacts" >> /tmp/release_notes.md
+          echo "- Client: \`client/dist/\`" >> /tmp/release_notes.md
+          echo "- Server: \`server/dist/\`" >> /tmp/release_notes.md
+          
+          cat /tmp/release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: /tmp/release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref, 'rc') || contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Upload build artifacts to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            client/dist/**
+            server/dist/**
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Log deployment info
+        run: |
+          echo "Release created: ${{ github.ref_name }}"
+          echo "Commit SHA: ${{ github.sha }}"
+          echo "Release artifacts are available in GitHub Releases"
+

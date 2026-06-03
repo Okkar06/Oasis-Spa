@@ -1,0 +1,257 @@
+name: Prisma Usage Verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/services/**'
+      - 'server/controllers/**'
+      - 'server/prisma/**'
+      - '.github/workflows/11-prisma-usage-check.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/services/**'
+      - 'server/controllers/**'
+      - 'server/prisma/**'
+
+jobs:
+  verify-prisma-imports:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for proper Prisma imports
+        run: |
+          echo "🔍 Checking Prisma imports in services..."
+          
+          # Check that all service files import prisma correctly
+          SERVICE_FILES=$(find server/services -name "*.ts" -type f 2>/dev/null)
+          
+          if [ -z "$SERVICE_FILES" ]; then
+            echo "⚠️  No service files found"
+            exit 0
+          fi
+          
+          ERROR_COUNT=0
+          
+          for file in $SERVICE_FILES; do
+            echo "Checking: $file"
+            
+            # Check if file has prisma import with .js extension
+            if grep -q "from.*prisma.js" "$file"; then
+              echo "  ✅ Has correct Prisma import"
+            elif grep -q "from.*prisma" "$file"; then
+              echo "  ⚠️  Has Prisma import but check extension"
+            else
+              # It's okay if file doesn't import prisma (e.g., utility services)
+              echo "  ℹ️  No Prisma import (may be utility service)"
+            fi
+          done
+          
+          echo ""
+          echo "✅ Prisma import check complete"
+
+  verify-no-raw-sql:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for deprecated raw SQL usage
+        run: |
+          echo "🔍 Checking for deprecated raw SQL patterns..."
+          
+          # Patterns to avoid
+          PATTERNS=(
+            'query.*SELECT'
+            'query.*INSERT'
+            'query.*UPDATE'
+            'query.*DELETE'
+            'executeQuery'
+            'db\.query'
+            'pgClient\.query'
+            'client\.query'
+          )
+          
+          FOUND_ISSUES=0
+          
+          for pattern in "${PATTERNS[@]}"; do
+            FILES=$(grep -r "$pattern" server/services server/controllers 2>/dev/null | grep -v node_modules | grep -v dist || true)
+            if [ ! -z "$FILES" ]; then
+              echo "⚠️  Found potential raw SQL usage pattern: $pattern"
+              echo "$FILES"
+              FOUND_ISSUES=$((FOUND_ISSUES + 1))
+            fi
+          done
+          
+          if [ $FOUND_ISSUES -eq 0 ]; then
+            echo "✅ No deprecated raw SQL patterns found"
+          else
+            echo "⚠️  Found $FOUND_ISSUES potential issues - review manually"
+          fi
+
+  verify-prisma-types:
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd server
+          npm ci
+
+      - name: Generate Prisma Client
+        run: |
+          cd server
+          npm run prisma:generate
+
+      - name: Verify Prisma types are generated
+        run: |
+          echo "🔍 Verifying Prisma type definitions..."
+          
+          if [ -f "server/node_modules/@prisma/client/index.d.ts" ]; then
+            echo "✅ Prisma TypeScript definitions exist"
+            
+            # Check for key types
+            TYPES_TO_CHECK=(
+              "PrismaClient"
+              "Prisma"
+              "DMMF"
+            )
+            
+            for type in "${TYPES_TO_CHECK[@]}"; do
+              if grep -q "export.*$type" server/node_modules/@prisma/client/index.d.ts; then
+                echo "  ✅ Found type: $type"
+              else
+                echo "  ⚠️  Missing type: $type"
+              fi
+            done
+          else
+            echo "❌ Prisma TypeScript definitions not found"
+            exit 1
+          fi
+
+  lint-prisma-schema:
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd server
+          npm ci
+
+      - name: Run Prisma format
+        run: |
+          cd server
+          npx prisma format
+
+      - name: Validate schema syntax
+        run: |
+          cd server
+          npx prisma validate
+
+      - name: Check schema formatting
+        run: |
+          cd server
+          # Check if prisma format would make changes
+          npx prisma format --check 2>/dev/null || {
+            echo "⚠️  Schema needs formatting"
+            echo "Run: npx prisma format"
+          }
+
+  verify-service-implementation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check key services are implemented with Prisma
+        run: |
+          echo "🔍 Verifying Prisma services implementation..."
+          
+          REQUIRED_SERVICES=(
+            "appointmentService.ts"
+            "productService.ts"
+            "revenueService.ts"
+            "systemService.ts"
+          )
+          
+          for service in "${REQUIRED_SERVICES[@]}"; do
+            SERVICE_PATH="server/services/$service"
+            if [ ! -f "$SERVICE_PATH" ]; then
+              echo "❌ Missing required service: $service"
+              exit 1
+            fi
+            
+            # Check if service has Prisma queries
+            if grep -q "prisma\." "$SERVICE_PATH"; then
+              echo "✅ Service $service uses Prisma"
+            else
+              echo "⚠️  Service $service may not use Prisma - please review"
+            fi
+            
+            # Check for proper async/await
+            if grep -q "async" "$SERVICE_PATH"; then
+              echo "  ✅ Service has async functions"
+            else
+              echo "  ⚠️  Service may not have async functions"
+            fi
+          done
+          
+          echo ""
+          echo "✅ Service implementation check complete"
+
+  check-seed-file:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify seed file syntax
+        run: |
+          echo "🔍 Checking seed file structure..."
+          
+          SEED_FILE="server/prisma/seed.ts"
+          
+          if [ ! -f "$SEED_FILE" ]; then
+            echo "❌ Seed file not found at $SEED_FILE"
+            exit 1
+          fi
+          
+          echo "✅ Seed file exists"
+          
+          # Check for key patterns
+          PATTERNS=(
+            "import { prisma }"
+            "async function"
+            "await prisma"
+            "prisma.\$disconnect"
+          )
+          
+          for pattern in "${PATTERNS[@]}"; do
+            if grep -q "$pattern" "$SEED_FILE"; then
+              echo "  ✅ Found: $pattern"
+            else
+              echo "  ⚠️  Missing: $pattern"
+            fi
+          done
+

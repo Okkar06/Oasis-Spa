@@ -1,0 +1,145 @@
+import { isValid, format, parseISO } from 'date-fns';
+import { fromZonedTime } from 'date-fns-tz';
+
+export const getBrowserTimezone = () => {
+  let detectedTimezone;
+  try {
+    detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // console.log(`Detected browser timezone: ${detectedTimezone}`);
+    return detectedTimezone;
+  } catch (e) {
+    console.error('Error detecting browser timezone, falling back to UTC:', e);
+    detectedTimezone = 'UTC';
+    return detectedTimezone;
+  }
+};
+
+const isUtcDateField = (key) => {
+  if (typeof key !== 'string') return false;
+  const lowerkey = key.toLowerCase();
+  return lowerkey.endsWith('ed_at') || lowerkey.endsWith('_utc');
+};
+
+const convertLocalToUtc = (localDateTime, localTimezone) => {
+  if (!localDateTime || !localTimezone) return null;
+
+  try {
+    let dateToConvert;
+    if (typeof localDateTime === 'string') {
+      dateToConvert = localDateTime;
+    } else if (localDateTime instanceof Date && isValid(localDateTime)) {
+      dateToConvert = format(localDateTime, "yyyy-MM-dd'T'HH:mm:ss");
+    } else {
+      console.error('Invalid date format:', localDateTime);
+      return null;
+    }
+
+    const utcDate = fromZonedTime(dateToConvert, localTimezone);
+
+    if (!isValid(utcDate)) {
+      console.error('Invalid UTC date:', utcDate);
+      return null;
+    }
+
+    return utcDate.toISOString();
+  } catch (error) {
+    console.error('Error converting local date to UTC:', error);
+    return null;
+  }
+};
+
+const parseUTCISOToDate = (utcIsoString) => {
+  // If already a valid Date object, return it as-is
+  if (utcIsoString instanceof Date && isValid(utcIsoString)) {
+    return utcIsoString;
+  }
+
+  if (typeof utcIsoString !== 'string') {
+    // Not a string and not a valid Date - return null silently
+    return null;
+  }
+
+  try {
+    // Try parsing as ISO string first
+    let dateObj = parseISO(utcIsoString);
+    if (isValid(dateObj)) {
+      return dateObj;
+    }
+
+    // Fallback: Try parsing as HTTP header format (RFC 7231) like "Tue, 11 Nov 2025 06:59:51 GMT"
+    // This format is sometimes returned by servers in Set-Cookie or other headers
+    dateObj = new Date(utcIsoString);
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj;
+    }
+
+    console.error(`Failed to parse UTC ISO string: "${utcIsoString}"`);
+    return null;
+  } catch (error) {
+    console.error('Error parsing UTC date string:', error);
+    return null;
+  }
+};
+
+export const transformRequestDates = (data, localDateTime) => {
+  if (Array.isArray(data)) {
+    return data.map((item) => transformRequestDates(item, localDateTime));
+  }
+
+  if (
+    data !== null &&
+    typeof data === 'object' &&
+    !(data instanceof Date) &&
+    !(data instanceof File || data instanceof Blob)
+  ) {
+    const copy = {};
+    let dateFieldFound = false;
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        if (isUtcDateField(key)) {
+          dateFieldFound = true;
+          const utcIso = convertLocalToUtc(data[key], localDateTime);
+          copy[key] = utcIso !== null ? utcIso : data[key];
+        } else {
+          copy[key] = transformRequestDates(data[key], localDateTime);
+        }
+      }
+    }
+
+    if (!dateFieldFound) {
+      const now = new Date();
+      const currentUtcIso = convertLocalToUtc(now, localDateTime);
+      if (currentUtcIso !== null) {
+        copy['created_at'] = currentUtcIso;
+        copy['updated_at'] = currentUtcIso;
+      } else {
+        console.error('Failed to set created_at and updated_at fields. UTC conversion returned null.');
+      }
+    }
+
+    return copy;
+  }
+  return data;
+};
+
+export const transformResponseDates = (data) => {
+  if (Array.isArray(data)) {
+    return data.map((item) => transformResponseDates(item));
+  }
+
+  if (data !== null && typeof data === 'object') {
+    const copy = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        if (isUtcDateField(key)) {
+          const dateObj = parseUTCISOToDate(data[key]);
+          copy[key] = dateObj !== null ? dateObj : data[key];
+        } else {
+          copy[key] = transformResponseDates(data[key]);
+        }
+      }
+    }
+    return copy;
+  }
+  return data;
+};

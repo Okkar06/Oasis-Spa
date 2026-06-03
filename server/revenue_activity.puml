@@ -1,0 +1,65 @@
+@startuml
+title Activity Diagram: Revenue Report (View & Edit)
+start
+
+:User navigates to Revenue Report Page;
+:User selects Month and Year;
+:User selects Report Tab (Combined, MV, MCP, or Ad-Hoc);
+
+repeat
+    partition "Frontend" {
+        :Send GET request to /rr/mrr/{tab};
+    }
+
+    partition "Backend (Revenue Service)" {
+        :Fetch Income, Net Sales, Refund Data;
+        :Aggregate Data by Day;
+        :Return JSON Data;
+    }
+
+    partition "Frontend" {
+        :Render Data Grid;
+    }
+
+    :User views Report Grid;
+
+    if (User clicks on a Cell to Edit?) then (yes)
+        partition "Frontend" {
+            :Open Breakdown/Edit Sheet;
+            :Request Cell Details;
+        }
+        
+        partition "Backend" {
+            :Fetch contributing transactions;
+            :Return details;
+        }
+        
+        :User reviews breakdown;
+        
+        if (User modifies value?) then (yes)
+            if (Add Transaction?) then (yes)
+                :Enter New Amount & Payment Method;
+            else (Direct Override?)
+                :Enter New Total Value;
+                :Provide Reason;
+            endif
+            
+            :Click Save;
+            
+            partition "Backend" {
+                :Process Update (Insert/Override);
+                :Recalculate affected totals;
+                :Return Success;
+            }
+        else (Cancel)
+            :Close Sheet;
+        endif
+    elseif (User clicks "Export Excel"?) then (yes)
+        :Generate .xlsx file;
+        :Download File;
+    endif
+
+repeat while (User continues editing?) is (yes)
+
+stop
+@enduml

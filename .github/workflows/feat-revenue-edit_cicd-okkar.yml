@@ -1,0 +1,106 @@
+name: Deploy to Azure Web App - cicd-okkar
+
+on:
+  push:
+    branches:
+      - feat/revenue-edit
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: Install and build server
+        run: |
+          cd server
+          npm ci || npm install
+          npx prisma generate
+          npm run build
+
+      - name: Install and build client
+        env:
+          VITE_API_URL: ''
+        run: |
+          cd client
+          npm ci || npm install
+          npm run build
+
+      - name: Setup Test Database
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
+        run: |
+          cd server
+          npx prisma migrate dev --name init
+          npm run db:seed
+          npm run db:seed:revenue
+
+      - name: Run E2E tests (Playwright)
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
+          PORT: 3000
+          JWT_SECRET: testsecret
+          SESSION_SECRET: testsecret
+        run: |
+          cd server
+          npm start &
+          sleep 10
+          cd ../client
+          npx playwright install --with-deps chromium
+          npx playwright test tests/e2e/revenue --project=chromium 
+
+      - name: Prepare deployment package
+        run: |
+          mkdir -p server/dist/public
+          cp -r client/dist/* server/dist/public/
+          
+          # Create .env file for production
+          echo "NODE_ENV=production" > server/.env
+
+          cd server
+          zip -r ../release.zip .
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_80E03ADF706C4B68BDACA6C81E6DF956 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_4C7AB313318B46FF87A89AA0DCB9E5FA }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_5DAC606865E64C9FA599FC9ABA1BCF3B }}
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'cicd-okkar'
+          slot-name: 'Production'
+          package: release.zip

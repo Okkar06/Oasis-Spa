@@ -1,0 +1,358 @@
+import * as React from 'react';
+import {
+  Command,
+  Users,
+  CalendarDays,
+  ShieldUser,
+  Box,
+  Wand,
+  LayoutDashboard,
+  SquareUserRound,
+  Package,
+  Tickets,
+  ChartColumnStacked,
+  CreditCard,
+  DollarSign,
+  Receipt,
+} from 'lucide-react';
+import { OasisMark } from '@/components/OasisMark';
+import { NavMain } from '@/components/nav-main';
+import { NavUser } from '@/components/nav-user';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar';
+import useAuth from '@/hooks/useAuth';
+
+const data = {
+  navMain: [
+    {
+      title: 'Dashboard',
+      url: '/',
+      icon: LayoutDashboard,
+      isActive: true,
+    },
+    {
+      title: 'Users',
+      url: '/users',
+      icon: ShieldUser,
+      items: [
+        {
+          title: 'View Users',
+          url: '/users',
+        },
+      ],
+    },
+    {
+      title: 'Revenue',
+      url: '#',
+      icon: DollarSign,
+      items: [
+        {
+          title: 'Revenue Report',
+          url: '/rr',
+        },
+        {
+          title: 'Deferred Revenue',
+          url: '/dr',
+        },
+      ],
+    },
+    {
+      title: 'Services',
+      url: '#',
+      icon: Wand,
+      items: [
+        {
+          title: 'Add New Service',
+          url: '/create-service',
+        },
+        {
+          title: 'Manage Services',
+          url: '/manage-service',
+        },
+      ],
+    },
+    {
+      title: 'Products',
+      url: '#',
+      icon: Box,
+      items: [
+        {
+          title: 'Create Product',
+          url: '/create-product',
+        },
+        {
+          title: 'Manage Products',
+          url: '/manage-product',
+        },
+      ],
+    },
+    {
+      title: 'Vouchers',
+      url: '#',
+      icon: Tickets,
+      items: [
+        {
+          title: 'Create Voucher Template',
+          url: '/voucher-template/create',
+        },
+        {
+          title: 'Manage Voucher Templates',
+          url: '/voucher-template',
+        },
+        {
+          title: 'Manage Member Voucher',
+          url: '/mv',
+        },
+      ],
+    },
+    {
+      title: 'Members',
+      url: '/member',
+      icon: SquareUserRound,
+      items: [
+        {
+          title: 'Manage Member',
+          url: '/member',
+        },
+        {
+          title: 'Create Member',
+          url: '/member/create',
+        },
+        {
+          title: 'Manage Membership Type',
+          url: '/membership-type',
+        },
+      ],
+    },
+    {
+      title: 'Care Packages',
+      url: '#',
+      icon: Package,
+      items: [
+        {
+          title: 'Create Care Package',
+          url: '/cp/c',
+        },
+        {
+          title: 'Manage Care Packages',
+          url: '/cp',
+        },
+        {
+          title: 'Create Member Care Package',
+          url: '/mcp/create',
+        },
+        {
+          title: 'Manage Member Care Package',
+          url: '/mcp',
+        },
+      ],
+    },
+    {
+      title: 'Sale Transactions',
+      url: '#',
+      icon: CreditCard,
+      items: [
+        {
+          title: 'Create Sale Transactions',
+          url: '/sale-transaction',
+        },
+        {
+          title: 'View Sale Transactions',
+          url: '/sale-transaction/list',
+        },
+      ],
+    },
+    {
+      title: 'Employees',
+      url: '/employees',
+      icon: Users,
+      items: [
+        {
+          title: 'Add new employee',
+          url: '/employees/create',
+        },
+        {
+          title: 'Manage employees',
+          url: '/employees',
+        },
+        {
+          title: 'Add new position',
+          url: '/positions/create',
+        },
+        {
+          title: 'Manage positions',
+          url: '/positions',
+        },
+      ],
+    },
+    {
+      title: 'Appointments',
+      url: '/appointments',
+      icon: CalendarDays,
+      items: [
+        {
+          title: 'View Appointments',
+          url: '/appointments',
+        },
+        {
+          title: 'Add New Appointment',
+          url: '/appointments/create',
+        },
+      ],
+    },
+
+    {
+      title: 'Payment Methods',
+      url: '/payment-method',
+      icon: CreditCard,
+      items: [
+        {
+          title: 'Manage Payment Methods',
+          url: '/payment-method',
+        },
+      ],
+    },
+    {
+      title: 'Refunds',
+      icon: Receipt,
+      items: [
+        {
+          title: 'Refund Management',
+          url: '/refunds',
+        },
+        {
+          title: 'Credit Notes',
+          url: '/credit-notes',
+        },
+      ],
+    },
+    // {
+    //   title: 'Statistics',
+    //   url: '#',
+    //   icon: ChartColumnStacked,
+    //   items: [
+    //     {
+    //       title: 'View Database Report',
+    //       url: '/dbcr',
+    //     },
+    //     {
+    //       title: 'View Monthly Revenue Report',
+    //       url: '#',
+    //     },
+    //   ],
+    // },
+    {
+      title: 'Timetables',
+      url: '#',
+      icon: CalendarDays,
+      items: [
+        {
+          title: 'Create Timetable',
+          url: '/et/create-employee-timetable',
+        },
+        {
+          title: 'Manage Timetable',
+          url: '/et',
+        },
+      ],
+    },
+    {
+      title: 'Others',
+      url: '#',
+      icon: ChartColumnStacked,
+      items: [
+        {
+          title: 'Data Export',
+          url: '/data-export',
+        },
+        {
+          title: 'My Translations',
+          url: '/translations',
+          icon: Command,
+        },
+        // `Global Translations` will be injected for super_admin in dataForUser
+      ],
+    },
+  ],
+};
+
+export function AppSidebar({ ...props }) {
+  const { user, isLoading } = useAuth();
+  // const { isSimulationActive } = useSimulationStore();
+
+  // const topClass = isSimulationActive
+  //   ? 'top-[calc(var(--header-height)+var(--sim-bar-height))]'
+  //   : 'top-[var(--header-height)]';
+
+  // const heightClass = isSimulationActive
+  //   ? 'h-[calc(100svh-var(--header-height)-var(--sim-bar-height))]!'
+  //   : 'h-[calc(100svh-var(--header-height))]!';
+
+  const dataForUser = React.useMemo(() => {
+    console.log('AppSidebar: user object:', user, 'isLoading:', isLoading);
+    const navData = {
+      navMain: data.navMain.map((item) => ({
+        ...item,
+        items: item.items ? item.items.map((subItem) => ({ ...subItem })) : undefined,
+      })),
+    };
+    if (!isLoading && user && user.role === 'super_admin') {
+      const userSection = navData.navMain.find((item) => item.title === 'Users');
+      if (userSection) {
+        userSection.items.push({
+          title: 'Create User',
+          url: '/users/create',
+        });
+      }
+      const othersSection = navData.navMain.find((item) => item.title === 'Others');
+      if (othersSection && othersSection.items) {
+        othersSection.items.push({
+          title: 'Data Seeding',
+          url: '/seed',
+        });
+        // global translations visible only to super_admin
+        othersSection.items.push({
+          title: 'Global Translations',
+          url: '/translations/global',
+          icon: Command,
+        });
+      }
+    }
+    return navData;
+  }, [user, isLoading]);
+
+  return (
+    <Sidebar className='top-(--header-height) h-[calc(100svh-var(--header-height))]!' {...props}>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size='lg' asChild>
+              <a href='#'>
+                <div className='flex aspect-square size-8 items-center justify-center rounded-lg border border-white/10 bg-[#111111]/60 text-[color:var(--accent)] shadow-[0_0_0_1px_rgba(201,169,110,0.12)]'>
+                  <OasisMark className='size-4' />
+                </div>
+                <div className='grid flex-1 text-left text-sm leading-tight'>
+                  <span className='truncate font-medium'>Oasis Spa</span>
+                  <span className='truncate text-xs'>Enterprise</span>
+                </div>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+      <SidebarContent className="p-4">
+        <NavMain items={dataForUser.navMain} />
+      </SidebarContent>
+      <SidebarFooter>
+        <NavUser user={user} />
+      </SidebarFooter>
+    </Sidebar>
+  );
+}

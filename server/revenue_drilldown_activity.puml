@@ -1,0 +1,49 @@
+@startuml
+title Activity Diagram: Manual Adjustment / Drill Down
+start
+
+:User views Revenue Report Grid;
+:User clicks on a specific Cell (e.g., Day 5 - Cash);
+
+partition "Frontend" {
+    :Open Breakdown Sheet (Side Panel);
+    :Send GET /rr/cell-breakdown request;
+}
+
+partition "Backend" {
+    :Fetch all transactions contributing to that Cell;
+    :Return Transaction List;
+}
+
+:User views Transaction List;
+
+if (User wants to Fix/Adjust Data?) then (yes)
+    if (Add New Transaction?) then (yes)
+        :User clicks "Add Manual Transaction";
+        :User enters Amount and Payment Method;
+    else (Override Total?)
+        :User enters new Total Value;
+        :User enters "Reason" for override;
+    endif
+    
+    :User clicks "Save Changes";
+    
+    partition "Backend" {
+        :Receive Update Request;
+        if (Mode == "Transaction") then (yes)
+            :Create new SaleTransaction (Manual Adjustment);
+            :Create PaymentToSaleTransaction;
+        else (Mode == "Override")
+            :Log Manual Override;
+            :Create Adjustment Transaction to match new Total;
+        endif
+        :Commit Transaction;
+        :Return Success;
+    }
+    
+    :Frontend re-fetches Revenue Data;
+    :Grid updates with new values;
+endif
+
+stop
+@enduml

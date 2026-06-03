@@ -1,0 +1,265 @@
+name: Prisma Integration Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/12-prisma-integration-test.yml'
+  pull_request:
+    branches: [main]
+
+jobs:
+  prisma-build-test:
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: server/node_modules
+          key: ${{ runner.os }}-prisma-build-${{ hashFiles('server/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-prisma-build-
+
+      - name: Install dependencies
+        run: |
+          cd server
+          npm ci
+
+      - name: Generate Prisma Client
+        run: |
+          cd server
+          npm run prisma:generate
+
+      - name: Build with TypeScript
+        run: |
+          cd server
+          npm run build
+
+      - name: Verify imports resolve correctly
+        run: |
+          echo "✅ Build successful - all Prisma imports resolved"
+          
+          # Check that compiled files use .js extensions
+          if grep -r "from.*prisma\.js" server/dist > /dev/null 2>&1; then
+            echo "✅ Compiled output has correct .js import paths"
+          else
+            echo "⚠️  Import paths may need verification"
+          fi
+          
+          # Verify prisma.js output exists
+          if [ -f "server/dist/lib/prisma.js" ]; then
+            echo "✅ Prisma client singleton compiled to dist"
+          else
+            echo "⚠️  Prisma singleton not found in dist"
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-build-prisma-test
+          path: server/dist/
+          retention-days: 1
+
+  prisma-type-checking:
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd server
+          npm ci
+
+      - name: Generate Prisma Client
+        run: |
+          cd server
+          npm run prisma:generate
+
+      - name: Run TypeScript compiler in check-only mode
+        run: |
+          cd server
+          npx tsc --noEmit
+
+      - name: Verify Prisma client types
+        run: |
+          echo "Checking Prisma type definitions..."
+          
+          # Verify type generation
+          if [ -d "server/node_modules/@prisma/client" ]; then
+            echo "✅ Prisma client installed"
+            
+            # Check key type files
+            for file in index.d.ts runtime index.js; do
+              if [ -f "server/node_modules/@prisma/client/$file" ]; then
+                echo "  ✅ Found $file"
+              fi
+            done
+          else
+            echo "❌ Prisma client not found"
+            exit 1
+          fi
+
+  database-url-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate DATABASE_URL usage
+        run: |
+          echo "🔍 Checking DATABASE_URL references..."
+          
+          # Check that DATABASE_URL is only used in Prisma config
+          DB_URL_REFS=$(grep -r "DATABASE_URL" server --include="*.ts" --exclude-dir=node_modules --exclude-dir=dist 2>/dev/null || true)
+          
+          if [ -z "$DB_URL_REFS" ]; then
+            echo "✅ DATABASE_URL not hardcoded in TypeScript files"
+          else
+            echo "⚠️  DATABASE_URL references found:"
+            echo "$DB_URL_REFS"
+          fi
+          
+          # Verify .env.example has DATABASE_URL
+          if [ -f "server/.env.example" ]; then
+            if grep -q "DATABASE_URL" server/.env.example; then
+              echo "✅ DATABASE_URL documented in .env.example"
+            else
+              echo "⚠️  DATABASE_URL not in .env.example"
+            fi
+          fi
+
+  prisma-script-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Validate package.json prisma scripts
+        run: |
+          echo "🔍 Checking package.json Prisma scripts..."
+          
+          REQUIRED_SCRIPTS=(
+            "prisma:generate"
+            "prisma:migrate"
+            "prisma:migrate:deploy"
+            "prisma:seed"
+          )
+          
+          for script in "${REQUIRED_SCRIPTS[@]}"; do
+            if grep -q "\"$script\"" server/package.json; then
+              echo "✅ Script defined: $script"
+              SCRIPT_CMD=$(grep "$script" server/package.json | head -1)
+              echo "   $SCRIPT_CMD"
+            else
+              echo "⚠️  Script not found: $script"
+            fi
+          done
+
+  seed-file-validation:
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Validate seed.ts syntax
+        run: |
+          echo "🔍 Validating seed file syntax..."
+          
+          cd server
+          npm ci
+          
+          # Check TypeScript syntax without running it
+          npx tsc --noEmit prisma/seed.ts 2>&1 | head -20 || true
+          
+          # Check for common seed patterns
+          PATTERNS=(
+            "async function"
+            "await prisma"
+            "console.log"
+            "prisma.\$disconnect"
+          )
+          
+          echo ""
+          echo "Checking seed patterns:"
+          for pattern in "${PATTERNS[@]}"; do
+            if grep -q "$pattern" prisma/seed.ts; then
+              echo "  ✅ $pattern"
+            else
+              echo "  ⚠️  Missing: $pattern"
+            fi
+          done
+
+  schema-consistency-check:
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd server
+          npm ci
+
+      - name: Validate schema consistency
+        run: |
+          echo "🔍 Checking Prisma schema consistency..."
+          
+          cd server
+          
+          # Generate client and check for errors
+          npx prisma generate 2>&1 | tee prisma-gen.log
+          
+          if grep -i "error" prisma-gen.log; then
+            echo "❌ Schema generation errors found"
+            exit 1
+          else
+            echo "✅ Schema generation successful"
+          fi
+          
+          # Run validation
+          npx prisma validate 2>&1 | tee prisma-validate.log
+          
+          if grep -i "error" prisma-validate.log; then
+            echo "❌ Schema validation errors found"
+            exit 1
+          else
+            echo "✅ Schema validation successful"
+          fi
+

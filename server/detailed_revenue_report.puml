@@ -1,0 +1,90 @@
+@startuml
+title Detailed Revenue Report Use Case Diagram
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Admin / Manager" as Admin
+
+rectangle "Revenue Reporting Module" {
+
+    package "Monthly Revenue Report (Realized & Income)" {
+        usecase "View Monthly Report" as UC_MRR
+        
+        usecase "Select Year & Month" as UC_SelectDate
+        usecase "Select Tab (Category)" as UC_Tab
+        
+        package "Views by Category" {
+            usecase "View Combined Report" as UC_View_Comb
+            usecase "View Member Voucher (MV) Report" as UC_View_MV
+            usecase "View Member Care Package (MCP) Report" as UC_View_MCP
+            usecase "View Ad-Hoc Report" as UC_View_AdHoc
+        }
+        
+        package "Data Analysis" {
+            usecase "View Income Columns (Dynamic Payment Methods)" as UC_Col_Income
+            usecase "View Net Sales Column (Realized Revenue)" as UC_Col_Net
+            usecase "View Refund Column" as UC_Col_Refund
+            usecase "View GST Column" as UC_Col_GST
+        }
+
+        package "Data Management" {
+            usecase "Drill Down Cell (View Transactions)" as UC_Drill
+            usecase "Manual Adjustment (Add Transaction)" as UC_Adjust
+            usecase "Manual Override (Force Value)" as UC_Override
+            usecase "Export to Excel" as UC_Export
+        }
+    }
+
+    package "Deferred Revenue Report (Liability)" {
+        usecase "View Deferred Revenue" as UC_DR
+        usecase "Calculate Deferred Amount" as UC_Calc_Def
+        
+        note bottom of UC_Calc_Def
+          Formula:
+          Total Income (Collected)
+          - Net Sales (Consumed)
+          - Refunds
+          = Remaining Liability
+        end note
+    }
+}
+
+' Relationships
+Admin --> UC_MRR
+Admin --> UC_DR
+
+' Monthly Report Flow
+UC_MRR ..> UC_SelectDate : <<include>>
+UC_MRR ..> UC_Tab : <<include>>
+
+UC_Tab <|-- UC_View_Comb
+UC_Tab <|-- UC_View_MV
+UC_Tab <|-- UC_View_MCP
+UC_Tab <|-- UC_View_AdHoc
+
+UC_MRR ..> UC_Col_Income : <<include>>
+UC_MRR ..> UC_Col_Net : <<include>>
+UC_MRR ..> UC_Col_Refund : <<include>>
+
+UC_MRR ..> UC_Export : <<extend>>
+UC_MRR ..> UC_Drill : <<extend>>
+UC_Drill <|-- UC_Adjust
+UC_Drill <|-- UC_Override
+
+' Deferred Report Flow
+UC_DR ..> UC_Calc_Def : <<include>>
+
+note right of UC_Col_Net
+  **Net Sales / Realized Revenue**:
+  Revenue is recognized when the service
+  is performed (Voucher Redemptions),
+  NOT when the voucher is purchased.
+end note
+
+note right of UC_Col_Income
+  **Income**:
+  Cash flow received upfront.
+  Breakdown by Cash, PayNow, NETS, etc.
+end note
+
+@enduml

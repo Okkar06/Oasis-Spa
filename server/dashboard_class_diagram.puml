@@ -1,0 +1,57 @@
+@startuml
+title Class Diagram - Dashboard Management
+skinparam classAttributeIconSize 0
+
+class SaleTransaction {
+    - id: BigInt
+    - customerType: String
+    - totalPaidAmount: Decimal
+    - outstandingTotalPaymentAmount: Decimal
+    - gstAmount: Decimal
+    - saleTransactionStatus: String
+    - createdAt: DateTime
+    + calculateTotalAmount(): Decimal
+    + calculateGST(): Decimal
+}
+
+class SaleTransactionItem {
+    - id: BigInt
+    - serviceName: String
+    - productName: String
+    - quantity: Int
+    - amount: Decimal
+    - itemType: String
+}
+
+class PaymentToSaleTransaction {
+    - id: BigInt
+    - amount: Decimal
+    - createdAt: DateTime
+}
+
+class PaymentMethod {
+    - id: BigInt
+    - paymentMethodName: String
+    - isEnabled: Boolean
+    - isIncome: Boolean
+}
+
+class DashboardService {
+    + getMonthlyRevenue(): Map
+    + getTopSellingServices(limit: Int): List<Map>
+    + getRevenueTrend(days: Int): List<Map>
+}
+
+' Relationships
+SaleTransaction "1" -- "1..*" SaleTransactionItem : contains
+SaleTransaction "1" -- "0..*" PaymentToSaleTransaction : paid via
+
+PaymentToSaleTransaction "0..*" -- "1" PaymentMethod : uses
+
+' Conceptual Dependencies for Services
+DashboardService ..> SaleTransaction : accesses
+DashboardService ..> SaleTransactionItem : accesses
+DashboardService ..> PaymentToSaleTransaction : uses
+DashboardService ..> PaymentMethod : uses
+
+@enduml

@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: oasis-spa-backend
+    env: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: postgres://USERNAME:PASSWORD@HOST:5432/oasis_spa?sslmode=require
+      - key: JWT_SECRET
+        value: CHANGE_ME
+
+  - type: static_site
+    name: oasis-spa-frontend
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: out
+    envVars:
+      - key: VITE_API_URL
+        value: https://oasis-spa-backend.onrender.com

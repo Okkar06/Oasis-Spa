@@ -1,0 +1,47 @@
+@startuml
+title Activity Diagram: Load Dashboard
+start
+
+:User logs in / Navigates to Dashboard;
+
+partition "Frontend" {
+    :Trigger "Load Dashboard stats" effect;
+    :Send multiple concurrent API requests;
+}
+
+partition "Backend (Dashboard Controller)" {
+    fork
+        :API: GET /dashboard/stats;
+        :Query: Sum Income for Current Month;
+        :Query: Count Transactions for Current Month;
+        :Calculate Average Transaction Value;
+        :Return {revenue, count, average};
+    fork again
+        :API: GET /dashboard/trend;
+        :Query: Fetch Daily Income for Last 7 Days;
+        :Group by Day;
+        :Return Array [{date, amount}, ...];
+    fork again
+        :API: GET /dashboard/top-services;
+        :Query: Group SalesItems by ServiceName (Latest 30 Days);
+        :Sum Quantity per Service;
+        :Sort Descending & Take Top 5;
+        :Return Array [{name, count}, ...];
+    end fork
+}
+
+partition "Frontend" {
+    :Receive Responses;
+    :Update State (Stats, Trend, Top Services);
+    
+    fork
+        :Render KPI Cards (Total Rev, Tx Count);
+    fork again
+        :Render Revenue Trend Chart (Area/Line);
+    fork again
+        :Render Top Services List/Chart;
+    end fork
+}
+
+stop
+@enduml

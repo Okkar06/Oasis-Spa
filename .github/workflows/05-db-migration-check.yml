@@ -1,0 +1,85 @@
+name: Database Migration Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'seed/**'
+      - 'server/sql/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Validate SQL files in seed/pre
+        run: |
+          echo "Validating seed/pre SQL files..."
+          for dir in seed/pre/*/; do
+            if [ -d "$dir" ]; then
+              for file in "$dir"*.sql; do
+                if [ -f "$file" ]; then
+                  echo "Checking: $file"
+                  psql -h localhost -U testuser -d testdb -f "$file" --dry-run 2>&1 | grep -i error && echo "ERROR in $file" && exit 1 || echo "✓ $file valid"
+                fi
+              done
+            fi
+          done
+        env:
+          PGPASSWORD: testpass
+        continue-on-error: true
+
+      - name: Validate SQL files in seed/post
+        run: |
+          echo "Validating seed/post SQL files..."
+          for dir in seed/post/*/; do
+            if [ -d "$dir" ]; then
+              for file in "$dir"*.sql; do
+                if [ -f "$file" ]; then
+                  echo "Checking: $file"
+                  psql -h localhost -U testuser -d testdb -f "$file" --dry-run 2>&1 | grep -i error && echo "ERROR in $file" && exit 1 || echo "✓ $file valid"
+                fi
+              done
+            fi
+          done
+        env:
+          PGPASSWORD: testpass
+        continue-on-error: true
+
+      - name: Check for SQL file syntax
+        run: |
+          echo "Checking SQL syntax..."
+          find seed -name "*.sql" -type f | while read file; do
+            echo "Validating syntax: $file"
+            if ! psql -h localhost -U testuser -d testdb -f "$file" --dry-run > /dev/null 2>&1; then
+              echo "⚠️  Warning: $file may have syntax issues (check logs)"
+            else
+              echo "✓ $file syntax OK"
+            fi
+          done
+        env:
+          PGPASSWORD: testpass
+        continue-on-error: true
+

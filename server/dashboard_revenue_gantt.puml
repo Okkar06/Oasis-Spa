@@ -1,0 +1,56 @@
+@startgantt
+title Oasis Spa Sale Transaction Feature - Sprint 3 & 4 Timeline
+
+' Oasis Spa Revenue & Dashboard Feature - Sprint 3 & 4 Timeline
+
+' Set project start and scale
+project starts 2026-01-19
+scale 3
+
+<style>
+ganttChart {
+  task {
+    FontName Helvetica
+    FontSize 16
+    LineColor transparent
+    Margin 12
+    Padding 12
+  }
+  timeline {
+    BackgroundColor transparent
+    FontSize 14
+  }
+}
+</style>
+
+' === Sprint Bands ===
+[   Sprint 3 (Jan 19 - Jan 30 2026)   ] starts 2026-01-19 and ends 2026-01-30
+[   Sprint 3 (Jan 19 - Jan 30 2026)   ] is colored in #4C6FFF
+
+[   Sprint 4 (Feb 2 - Feb 13 2026)   ] starts 2026-02-02 and ends 2026-02-13
+[   Sprint 4 (Feb 2 - Feb 13 2026)   ] is colored in #A855F7
+
+' === Sprint 3 Features ===
+[   Inline Revenue Report Editing (SCRUM-191)   ] starts 2026-01-19 and ends 2026-01-22
+[   Inline Revenue Report Editing (SCRUM-191)   ] is colored in #4C6FFF
+
+[   Numeric Validation & Auto-save (SCRUM-192)   ] starts 2026-01-23 and ends 2026-01-26
+[   Numeric Validation & Auto-save (SCRUM-192)   ] is colored in #4C6FFF
+
+[   Real-time Dashboard Statistics (SCRUM-103)   ] starts 2026-01-27 and ends 2026-01-30
+[   Real-time Dashboard Statistics (SCRUM-103)   ] is colored in #4C6FFF
+
+' === Sprint 4 Features ===
+[   Dynamic Payment Method Columns (SCRUM-222)   ] starts 2026-02-02 and ends 2026-02-04
+[   Dynamic Payment Method Columns (SCRUM-222)   ] is colored in #A855F7
+
+[   Improved Dashboard Layout & Visuals (SCRUM-224)   ] starts 2026-02-05 and ends 2026-02-07
+[   Improved Dashboard Layout & Visuals (SCRUM-224)   ] is colored in #A855F7
+
+[   E2E Tests - Revenue Report (SCRUM-228)   ] starts 2026-02-08 and ends 2026-02-10
+[   E2E Tests - Revenue Report (SCRUM-228)   ] is colored in #A855F7
+
+[   E2E Tests - Dashboard (SCRUM-229)   ] starts 2026-02-11 and ends 2026-02-13
+[   E2E Tests - Dashboard (SCRUM-229)   ] is colored in #A855F7
+
+@endgantt

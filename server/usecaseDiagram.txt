@@ -1,0 +1,40 @@
+usecaseDiagram
+    actor "Authorized User" as Admin
+
+    package "Revenue Management System" {
+        usecase "View Monthly Revenue Report" as UC_ViewMRR
+        usecase "View Deferred Revenue Report" as UC_ViewDR
+        usecase "Filter Reports by Date" as UC_Filter
+        usecase "Manage Report Data" as UC_ManageData
+
+        %% Monthly Revenue Report Sub-cases
+        usecase "View MV Breakdown" as UC_MRR_MV
+        usecase "View MCP Breakdown" as UC_MRR_MCP
+        usecase "View Ad-Hoc Breakdown" as UC_MRR_AdHoc
+
+        %% Deferred Revenue Report Sub-cases
+        usecase "View MV Deferred Revenue" as UC_DR_MV
+        usecase "View MCP Deferred Revenue" as UC_DR_MCP
+
+        %% Data Management Sub-cases
+        usecase "View Cell Breakdown" as UC_Breakdown
+        usecase "Update Cell Value" as UC_Update
+
+        %% Relationships
+        Admin --> UC_ViewMRR
+        Admin --> UC_ViewDR
+        Admin --> UC_ManageData
+
+        UC_ViewMRR <|-- UC_MRR_MV
+        UC_ViewMRR <|-- UC_MRR_MCP
+        UC_ViewMRR <|-- UC_MRR_AdHoc
+
+        UC_ViewDR <|-- UC_DR_MV
+        UC_ViewDR <|-- UC_DR_MCP
+
+        UC_ViewMRR ..> UC_Filter : <<include>>
+        UC_ViewDR ..> UC_Filter : <<include>>
+
+        UC_ManageData <|-- UC_Breakdown
+        UC_ManageData <|-- UC_Update
+    }
