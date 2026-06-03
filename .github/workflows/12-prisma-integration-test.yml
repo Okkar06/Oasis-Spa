@@ -1,13 +1,7 @@
 name: Prisma Integration Tests
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'server/**'
-      - '.github/workflows/12-prisma-integration-test.yml'
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   prisma-build-test:

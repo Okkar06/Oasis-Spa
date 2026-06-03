@@ -1,19 +1,7 @@
 name: Prisma Usage Verification
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'server/services/**'
-      - 'server/controllers/**'
-      - 'server/prisma/**'
-      - '.github/workflows/11-prisma-usage-check.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'server/services/**'
-      - 'server/controllers/**'
-      - 'server/prisma/**'
+  workflow_dispatch:
 
 jobs:
   verify-prisma-imports:

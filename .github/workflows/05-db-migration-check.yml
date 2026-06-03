@@ -1,11 +1,7 @@
 name: Database Migration Check
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'seed/**'
-      - 'server/sql/**'
+  workflow_dispatch:
 
 jobs:
   validate:

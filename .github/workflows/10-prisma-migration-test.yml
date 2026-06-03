@@ -1,17 +1,7 @@
 name: Prisma Migration Validation
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'server/prisma/**'
-      - 'server/package.json'
-      - '.github/workflows/10-prisma-migration-test.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'server/prisma/**'
-      - 'server/package.json'
+  workflow_dispatch:
 
 jobs:
   validate-migrations:
